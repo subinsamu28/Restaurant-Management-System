@@ -1,701 +1,657 @@
 "use client";
-
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   LayoutDashboard, ShoppingBag, ChefHat, UtensilsCrossed, Armchair,
   CalendarClock, Package, Users, BarChart3, Heart, Settings, LogOut,
-  Sun, Moon, Bell, Search, Plus, Eye, Edit, Trash2, Check, X,
-  Clock, DollarSign, TrendingUp, TrendingDown, AlertTriangle,
-  Filter, ChevronDown, ChevronRight, ChevronLeft, MoreVertical,
-  CreditCard, Banknote, Smartphone, Gift, Receipt, Printer,
-  ArrowUpRight, ArrowDownRight, Hash, MapPin, Phone, Mail,
-  Star, Flame, Snowflake, Leaf, Wifi, WifiOff, Volume2, VolumeX,
-  Grid3X3, List, RefreshCw, Download, Upload, Copy, Maximize2,
-  Minimize2, PanelLeftClose, PanelLeft, CircleDot, Square,
-  Circle, AlertCircle, Info, CheckCircle2, XCircle, Timer,
-  ShieldCheck, Lock, KeyRound, UserCog, Store, Palette, Globe,
-  Zap, Activity, PieChart, Target, EyeOff
+  Bell, Search, Plus, Edit, Check, X, Clock, DollarSign, AlertTriangle,
+  CreditCard, Banknote, Receipt, ArrowUpRight, ArrowDownRight, Phone, Mail,
+  Star, Flame, Volume2, Grid3X3, List, RefreshCw, PanelLeftClose, PanelLeft,
+  CircleDot, Square, Circle, CheckCircle2, XCircle, Info, ShieldCheck, Lock,
+  KeyRound, UserCog, Store, Globe, Target, TrendingDown, EyeOff, Eye,
+  Wifi, WifiOff, MoreVertical, Trash2, Save, ChevronRight
 } from "lucide-react";
 import {
-  LineChart as ReLineChart, Line, AreaChart, Area,
-  BarChart as ReBarChart, Bar, PieChart as RePieChart, Pie, Cell,
+  AreaChart, Area, BarChart as ReBarChart, Bar, PieChart as RePieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from "recharts";
 
-// ═══════════════════════════════════════════════════════════════
-// DEMO DATA — Realistic restaurant data for "Bella Cucina"
-// ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
+   HELPERS
+   ═══════════════════════════════════════════════════════════════ */
+function cn(...c){return c.filter(Boolean).join(" ")}
+function fmt(n){return `€${Number(n||0).toFixed(2)}`}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
+function minsAgo(d){return Math.floor((Date.now()-new Date(d).getTime())/60000)}
+function fmtTime(d){const m=minsAgo(d);return m<60?`${m}m`:`${Math.floor(m/60)}h ${m%60}m`}
+function urgency(d){const m=minsAgo(d);return m<10?"text-emerald-400":m<20?"text-amber-400":"text-red-400"}
 
-const DEMO_CATEGORIES = [
-  { id: "c1", name: "Antipasti", icon: "🥗", color: "#22C55E", itemCount: 6, sortOrder: 1 },
-  { id: "c2", name: "Pasta", icon: "🍝", color: "#F59E0B", itemCount: 8, sortOrder: 2 },
-  { id: "c3", name: "Pizza", icon: "🍕", color: "#EF4444", itemCount: 7, sortOrder: 3 },
-  { id: "c4", name: "Secondi", icon: "🥩", color: "#8B5CF6", itemCount: 5, sortOrder: 4 },
-  { id: "c5", name: "Dolci", icon: "🍰", color: "#EC4899", itemCount: 5, sortOrder: 5 },
-  { id: "c6", name: "Bevande", icon: "🍷", color: "#06B6D4", itemCount: 10, sortOrder: 6 },
+/* ═══════════════════════════════════════════════════════════════
+   INITIAL SEED DATA
+   ═══════════════════════════════════════════════════════════════ */
+const seedCategories=[
+  {id:"c1",name:"Antipasti",icon:"🥗"},{id:"c2",name:"Pasta",icon:"🍝"},
+  {id:"c3",name:"Pizza",icon:"🍕"},{id:"c4",name:"Secondi",icon:"🥩"},
+  {id:"c5",name:"Dolci",icon:"🍰"},{id:"c6",name:"Bevande",icon:"🍷"},
+];
+const seedMenu=[
+  {id:"m1",name:"Bruschetta Classica",catId:"c1",price:8.9,cost:2.1,available:true,prepTime:8,calories:280,allergens:["gluten","dairy"],station:"salad"},
+  {id:"m2",name:"Carpaccio di Manzo",catId:"c1",price:14.9,cost:5.2,available:true,prepTime:10,calories:220,allergens:[],station:"salad"},
+  {id:"m3",name:"Caprese Salad",catId:"c1",price:10.5,cost:3.1,available:true,prepTime:5,calories:310,allergens:["dairy"],station:"salad"},
+  {id:"m4",name:"Spaghetti Carbonara",catId:"c2",price:14.5,cost:3.2,available:true,prepTime:15,calories:520,allergens:["gluten","dairy","egg"],station:"pasta"},
+  {id:"m5",name:"Penne Arrabbiata",catId:"c2",price:12.9,cost:2.5,available:true,prepTime:12,calories:440,allergens:["gluten"],station:"pasta"},
+  {id:"m6",name:"Risotto ai Funghi",catId:"c2",price:16.9,cost:4.0,available:true,prepTime:20,calories:480,allergens:["dairy"],station:"pasta"},
+  {id:"m7",name:"Lasagna Bolognese",catId:"c2",price:15.5,cost:3.8,available:false,prepTime:25,calories:620,allergens:["gluten","dairy"],station:"pasta"},
+  {id:"m8",name:"Margherita",catId:"c3",price:11.9,cost:2.8,available:true,prepTime:12,calories:750,allergens:["gluten","dairy"],station:"pizza"},
+  {id:"m9",name:"Diavola",catId:"c3",price:13.9,cost:3.4,available:true,prepTime:12,calories:820,allergens:["gluten","dairy"],station:"pizza"},
+  {id:"m10",name:"Quattro Formaggi",catId:"c3",price:14.5,cost:4.2,available:true,prepTime:14,calories:900,allergens:["gluten","dairy"],station:"pizza"},
+  {id:"m11",name:"Bistecca Fiorentina",catId:"c4",price:32.9,cost:12,available:true,prepTime:25,calories:650,allergens:[],station:"grill"},
+  {id:"m12",name:"Branzino al Forno",catId:"c4",price:24.9,cost:8.5,available:true,prepTime:20,calories:380,allergens:["fish"],station:"grill"},
+  {id:"m13",name:"Tiramisu",catId:"c5",price:8.9,cost:2,available:true,prepTime:5,calories:420,allergens:["gluten","dairy","egg"],station:"salad"},
+  {id:"m14",name:"Panna Cotta",catId:"c5",price:7.9,cost:1.5,available:true,prepTime:3,calories:340,allergens:["dairy"],station:"salad"},
+  {id:"m15",name:"Espresso",catId:"c6",price:2.9,cost:0.4,available:true,prepTime:2,calories:5,allergens:[],station:"bar"},
+  {id:"m16",name:"Chianti (glass)",catId:"c6",price:8.5,cost:2.8,available:true,prepTime:1,calories:125,allergens:["sulfites"],station:"bar"},
+  {id:"m17",name:"Aperol Spritz",catId:"c6",price:9.5,cost:2.5,available:true,prepTime:3,calories:180,allergens:["sulfites"],station:"bar"},
+  {id:"m18",name:"Acqua Minerale",catId:"c6",price:3.5,cost:0.3,available:true,prepTime:1,calories:0,allergens:[],station:"bar"},
+];
+const seedTables=[
+  {id:"t1",number:"1",capacity:2,section:"main"},{id:"t2",number:"2",capacity:4,section:"main"},
+  {id:"t3",number:"3",capacity:4,section:"main"},{id:"t4",number:"4",capacity:6,section:"main"},
+  {id:"t5",number:"5",capacity:2,section:"main"},{id:"t6",number:"6",capacity:4,section:"main"},
+  {id:"t7",number:"7",capacity:8,section:"main"},{id:"t8",number:"P1",capacity:4,section:"patio"},
+  {id:"t9",number:"P2",capacity:4,section:"patio"},{id:"t10",number:"B1",capacity:2,section:"bar"},
+  {id:"t11",number:"B2",capacity:2,section:"bar"},{id:"t12",number:"VIP",capacity:10,section:"private"},
+];
+const seedInventory=[
+  {id:"i1",name:"Spaghetti (dry)",qty:12.5,unit:"kg",cost:2.4,threshold:5,par:20,supplier:"De Cecco",category:"Pasta"},
+  {id:"i2",name:"Penne (dry)",qty:8.2,unit:"kg",cost:2.2,threshold:5,par:15,supplier:"De Cecco",category:"Pasta"},
+  {id:"i3",name:"Mozzarella",qty:4.8,unit:"kg",cost:12,threshold:3,par:8,supplier:"Latteria",category:"Dairy"},
+  {id:"i4",name:"Parmigiano",qty:2.1,unit:"kg",cost:28,threshold:2,par:5,supplier:"Latteria",category:"Dairy"},
+  {id:"i5",name:"Beef Tenderloin",qty:3.2,unit:"kg",cost:45,threshold:2,par:6,supplier:"Fleischer Huber",category:"Meat"},
+  {id:"i6",name:"Olive Oil (EV)",qty:8.5,unit:"l",cost:14,threshold:5,par:15,supplier:"Ferraro",category:"Oils"},
+  {id:"i7",name:"Fresh Basil",qty:0.3,unit:"kg",cost:18,threshold:0.5,par:1,supplier:"Local Farm",category:"Herbs"},
+  {id:"i8",name:"Chianti Classico",qty:18,unit:"btl",cost:12,threshold:6,par:24,supplier:"Vinoteca",category:"Wine"},
+  {id:"i9",name:"Aperol",qty:4,unit:"btl",cost:16,threshold:2,par:6,supplier:"Vinoteca",category:"Spirits"},
+];
+const seedStaff=[
+  {id:"s1",name:"Marco Rossi",role:"owner",rate:0,avatar:"MR",active:true,email:"marco@bellacucina.de"},
+  {id:"s2",name:"Anna Schmidt",role:"manager",rate:22,avatar:"AS",active:true,email:"anna@bellacucina.de"},
+  {id:"s3",name:"Luigi Bianchi",role:"chef",rate:20,avatar:"LB",active:true,email:"luigi@bellacucina.de"},
+  {id:"s4",name:"Sophie Weber",role:"waiter",rate:14,avatar:"SW",active:true,email:"sophie@bellacucina.de"},
+  {id:"s5",name:"Felix Müller",role:"cashier",rate:13,avatar:"FM",active:true,email:"felix@bellacucina.de"},
+  {id:"s6",name:"Emma Fischer",role:"host",rate:13,avatar:"EF",active:true,email:"emma@bellacucina.de"},
+];
+const seedCustomers=[
+  {id:"cu1",name:"Hans Klein",email:"hans@klein.de",phone:"+49 176 1234567",visits:24,spent:1842.5,points:1840,tags:["VIP"],notes:"Prefers table 4"},
+  {id:"cu2",name:"Dr. Julia Braun",email:"braun@email.de",phone:"+49 151 9876543",visits:12,spent:2156,points:2150,tags:["VIP","Business"],notes:"Corporate events"},
+  {id:"cu3",name:"Maria Costa",email:"maria@costa.de",phone:"+49 172 8887654",visits:8,spent:562.3,points:560,tags:["Vegetarian"],notes:"Allergic to nuts"},
+];
+const seedReservations=[
+  {id:"rv1",name:"Klein Family",phone:"+49 176 1234567",size:4,time:"18:30",date:"Today",tableId:"t4",status:"confirmed",notes:"Anniversary"},
+  {id:"rv2",name:"Dr. Braun",phone:"+49 151 9876543",size:10,time:"19:00",date:"Today",tableId:"t12",status:"confirmed",notes:"Business dinner"},
+  {id:"rv3",name:"Schneider",phone:"+49 170 5551234",size:2,time:"20:00",date:"Today",tableId:"t5",status:"confirmed",notes:""},
 ];
 
-const DEMO_MENU = [
-  { id: "m1", name: "Bruschetta Classica", category: "c1", price: 8.90, cost: 2.10, available: true, prepTime: 8, calories: 280, allergens: ["gluten", "dairy"], station: "salad" },
-  { id: "m2", name: "Carpaccio di Manzo", category: "c1", price: 14.90, cost: 5.20, available: true, prepTime: 10, calories: 220, allergens: [], station: "salad" },
-  { id: "m3", name: "Caprese Salad", category: "c1", price: 10.50, cost: 3.10, available: true, prepTime: 5, calories: 310, allergens: ["dairy"], station: "salad" },
-  { id: "m4", name: "Spaghetti Carbonara", category: "c2", price: 14.50, cost: 3.20, available: true, prepTime: 15, calories: 520, allergens: ["gluten", "dairy", "egg"], station: "pasta" },
-  { id: "m5", name: "Penne all'Arrabbiata", category: "c2", price: 12.90, cost: 2.50, available: true, prepTime: 12, calories: 440, allergens: ["gluten"], station: "pasta" },
-  { id: "m6", name: "Risotto ai Funghi", category: "c2", price: 16.90, cost: 4.00, available: true, prepTime: 20, calories: 480, allergens: ["dairy"], station: "pasta" },
-  { id: "m7", name: "Lasagna Bolognese", category: "c2", price: 15.50, cost: 3.80, available: false, prepTime: 25, calories: 620, allergens: ["gluten", "dairy", "egg"], station: "pasta" },
-  { id: "m8", name: "Margherita", category: "c3", price: 11.90, cost: 2.80, available: true, prepTime: 12, calories: 750, allergens: ["gluten", "dairy"], station: "pizza" },
-  { id: "m9", name: "Diavola", category: "c3", price: 13.90, cost: 3.40, available: true, prepTime: 12, calories: 820, allergens: ["gluten", "dairy"], station: "pizza" },
-  { id: "m10", name: "Quattro Formaggi", category: "c3", price: 14.50, cost: 4.20, available: true, prepTime: 14, calories: 900, allergens: ["gluten", "dairy"], station: "pizza" },
-  { id: "m11", name: "Bistecca Fiorentina", category: "c4", price: 32.90, cost: 12.00, available: true, prepTime: 25, calories: 650, allergens: [], station: "grill" },
-  { id: "m12", name: "Branzino al Forno", category: "c4", price: 24.90, cost: 8.50, available: true, prepTime: 20, calories: 380, allergens: ["fish"], station: "grill" },
-  { id: "m13", name: "Ossobuco alla Milanese", category: "c4", price: 28.50, cost: 9.80, available: true, prepTime: 30, calories: 580, allergens: ["gluten"], station: "grill" },
-  { id: "m14", name: "Tiramisu", category: "c5", price: 8.90, cost: 2.00, available: true, prepTime: 5, calories: 420, allergens: ["gluten", "dairy", "egg"], station: "salad" },
-  { id: "m15", name: "Panna Cotta", category: "c5", price: 7.90, cost: 1.50, available: true, prepTime: 3, calories: 340, allergens: ["dairy"], station: "salad" },
-  { id: "m16", name: "Espresso", category: "c6", price: 2.90, cost: 0.40, available: true, prepTime: 2, calories: 5, allergens: [], station: "bar" },
-  { id: "m17", name: "Chianti Classico (glass)", category: "c6", price: 8.50, cost: 2.80, available: true, prepTime: 1, calories: 125, allergens: ["sulfites"], station: "bar" },
-  { id: "m18", name: "Aperol Spritz", category: "c6", price: 9.50, cost: 2.50, available: true, prepTime: 3, calories: 180, allergens: ["sulfites"], station: "bar" },
-  { id: "m19", name: "Limoncello", category: "c6", price: 6.50, cost: 1.20, available: true, prepTime: 1, calories: 100, allergens: ["sulfites"], station: "bar" },
-  { id: "m20", name: "Acqua Minerale", category: "c6", price: 3.50, cost: 0.30, available: true, prepTime: 1, calories: 0, allergens: [], station: "bar" },
-];
+/* ═══════════════════════════════════════════════════════════════
+   SMALL UI COMPONENTS
+   ═══════════════════════════════════════════════════════════════ */
+const badgeV={default:"bg-zinc-700/60 text-zinc-300",success:"bg-emerald-500/15 text-emerald-400 border border-emerald-500/20",warning:"bg-amber-500/15 text-amber-400 border border-amber-500/20",danger:"bg-red-500/15 text-red-400 border border-red-500/20",info:"bg-blue-500/15 text-blue-400 border border-blue-500/20",purple:"bg-purple-500/15 text-purple-400 border border-purple-500/20",brand:"bg-amber-500/15 text-amber-400 border border-amber-500/20"};
+function Badge({children,variant="default",className=""}){return <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium",badgeV[variant]||badgeV.default,className)}>{children}</span>}
 
-const DEMO_TABLES = [
-  { id: "t1", number: "1", capacity: 2, status: "occupied", section: "main", guests: 2, server: "Sophie W.", elapsed: 45 },
-  { id: "t2", number: "2", capacity: 4, status: "occupied", section: "main", guests: 3, server: "Sophie W.", elapsed: 22 },
-  { id: "t3", number: "3", capacity: 4, status: "available", section: "main", guests: 0, server: null, elapsed: 0 },
-  { id: "t4", number: "4", capacity: 6, status: "reserved", section: "main", guests: 0, server: null, elapsed: 0 },
-  { id: "t5", number: "5", capacity: 2, status: "available", section: "main", guests: 0, server: null, elapsed: 0 },
-  { id: "t6", number: "6", capacity: 4, status: "cleaning", section: "main", guests: 0, server: null, elapsed: 0 },
-  { id: "t7", number: "7", capacity: 8, status: "occupied", section: "main", guests: 6, server: "Mia H.", elapsed: 67 },
-  { id: "t8", number: "P1", capacity: 4, status: "available", section: "patio", guests: 0, server: null, elapsed: 0 },
-  { id: "t9", number: "P2", capacity: 4, status: "occupied", section: "patio", guests: 4, server: "Sophie W.", elapsed: 15 },
-  { id: "t10", number: "B1", capacity: 2, status: "occupied", section: "bar", guests: 2, server: "Felix M.", elapsed: 38 },
-  { id: "t11", number: "B2", capacity: 2, status: "available", section: "bar", guests: 0, server: null, elapsed: 0 },
-  { id: "t12", number: "VIP", capacity: 10, status: "reserved", section: "private", guests: 0, server: null, elapsed: 0 },
-];
+const statusMap={pending:{l:"Pending",v:"warning",i:Clock},confirmed:{l:"Confirmed",v:"info",i:Check},preparing:{l:"Preparing",v:"purple",i:Flame},ready:{l:"Ready",v:"success",i:CheckCircle2},served:{l:"Served",v:"brand",i:UtensilsCrossed},completed:{l:"Completed",v:"success",i:Check},cancelled:{l:"Cancelled",v:"danger",i:X}};
+function StatusBadge({status}){const s=statusMap[status]||statusMap.pending;const I=s.i;return <Badge variant={s.v}><I size={12}/>{s.l}</Badge>}
 
-const DEMO_ORDERS = [
-  {
-    id: "o1", number: 1047, tableNum: "1", waiter: "Sophie W.", type: "dine_in",
-    status: "served", guests: 2, subtotal: 47.30, tax: 8.99, tip: 0, total: 56.29,
-    createdAt: new Date(Date.now() - 45 * 60000), priority: false,
-    items: [
-      { id: "oi1", name: "Bruschetta Classica", qty: 1, price: 8.90, status: "served", station: "salad", notes: "" },
-      { id: "oi2", name: "Spaghetti Carbonara", qty: 1, price: 14.50, status: "served", station: "pasta", notes: "Extra pecorino" },
-      { id: "oi3", name: "Risotto ai Funghi", qty: 1, price: 16.90, status: "served", station: "pasta", notes: "" },
-      { id: "oi4", name: "Chianti Classico", qty: 2, price: 8.50, status: "served", station: "bar", notes: "" },
-    ]
-  },
-  {
-    id: "o2", number: 1048, tableNum: "2", waiter: "Sophie W.", type: "dine_in",
-    status: "preparing", guests: 3, subtotal: 62.20, tax: 11.82, tip: 0, total: 74.02,
-    createdAt: new Date(Date.now() - 22 * 60000), priority: false,
-    items: [
-      { id: "oi5", name: "Carpaccio di Manzo", qty: 1, price: 14.90, status: "ready", station: "salad", notes: "" },
-      { id: "oi6", name: "Caprese Salad", qty: 1, price: 10.50, status: "ready", station: "salad", notes: "No balsamic" },
-      { id: "oi7", name: "Bistecca Fiorentina", qty: 1, price: 32.90, status: "preparing", station: "grill", notes: "Medium rare" },
-      { id: "oi8", name: "Acqua Minerale", qty: 2, price: 3.50, status: "served", station: "bar", notes: "Sparkling" },
-    ]
-  },
-  {
-    id: "o3", number: 1049, tableNum: "7", waiter: "Mia H.", type: "dine_in",
-    status: "preparing", guests: 6, subtotal: 142.80, tax: 27.13, tip: 0, total: 169.93,
-    createdAt: new Date(Date.now() - 67 * 60000), priority: true,
-    items: [
-      { id: "oi9", name: "Bruschetta Classica", qty: 2, price: 8.90, status: "served", station: "salad", notes: "" },
-      { id: "oi10", name: "Margherita", qty: 2, price: 11.90, status: "ready", station: "pizza", notes: "" },
-      { id: "oi11", name: "Diavola", qty: 1, price: 13.90, status: "ready", station: "pizza", notes: "Extra spicy" },
-      { id: "oi12", name: "Ossobuco alla Milanese", qty: 2, price: 28.50, status: "preparing", station: "grill", notes: "" },
-      { id: "oi13", name: "Branzino al Forno", qty: 1, price: 24.90, status: "preparing", station: "grill", notes: "No lemon" },
-      { id: "oi14", name: "Aperol Spritz", qty: 3, price: 9.50, status: "served", station: "bar", notes: "" },
-    ]
-  },
-  {
-    id: "o4", number: 1050, tableNum: "P2", waiter: "Sophie W.", type: "dine_in",
-    status: "confirmed", guests: 4, subtotal: 58.70, tax: 11.15, tip: 0, total: 69.85,
-    createdAt: new Date(Date.now() - 15 * 60000), priority: false,
-    items: [
-      { id: "oi15", name: "Quattro Formaggi", qty: 2, price: 14.50, status: "pending", station: "pizza", notes: "" },
-      { id: "oi16", name: "Penne all'Arrabbiata", qty: 2, price: 12.90, status: "pending", station: "pasta", notes: "" },
-      { id: "oi17", name: "Acqua Minerale", qty: 2, price: 3.50, status: "pending", station: "bar", notes: "Still" },
-    ]
-  },
-  {
-    id: "o5", number: 1051, tableNum: "B1", waiter: "Felix M.", type: "dine_in",
-    status: "served", guests: 2, subtotal: 36.30, tax: 6.90, tip: 5.00, total: 48.20,
-    createdAt: new Date(Date.now() - 38 * 60000), priority: false,
-    items: [
-      { id: "oi18", name: "Aperol Spritz", qty: 2, price: 9.50, status: "served", station: "bar", notes: "" },
-      { id: "oi19", name: "Chianti Classico", qty: 1, price: 8.50, status: "served", station: "bar", notes: "" },
-      { id: "oi20", name: "Tiramisu", qty: 1, price: 8.90, status: "served", station: "salad", notes: "" },
-    ]
-  },
-  {
-    id: "o6", number: 1046, tableNum: "—", waiter: "Felix M.", type: "takeout",
-    status: "ready", guests: 1, subtotal: 26.80, tax: 5.09, tip: 0, total: 31.89,
-    createdAt: new Date(Date.now() - 35 * 60000), priority: false, customerName: "Hans K.",
-    items: [
-      { id: "oi21", name: "Margherita", qty: 1, price: 11.90, status: "ready", station: "pizza", notes: "" },
-      { id: "oi22", name: "Penne all'Arrabbiata", qty: 1, price: 12.90, status: "ready", station: "pasta", notes: "" },
-      { id: "oi23", name: "Espresso", qty: 1, price: 2.90, status: "ready", station: "bar", notes: "Double" },
-    ]
-  },
-];
-
-const DEMO_RESERVATIONS = [
-  { id: "r1", name: "Klein Family", phone: "+49 176 1234567", partySize: 4, time: "18:30", date: "Today", table: "4", status: "confirmed", notes: "Anniversary dinner" },
-  { id: "r2", name: "Dr. Braun", phone: "+49 151 9876543", partySize: 10, time: "19:00", date: "Today", table: "VIP", status: "confirmed", notes: "Business dinner, wine pairing" },
-  { id: "r3", name: "Schneider", phone: "+49 170 5551234", partySize: 2, time: "20:00", date: "Today", table: "5", status: "confirmed", notes: "" },
-  { id: "r4", name: "Maria Costa", phone: "+49 172 8887654", partySize: 6, time: "19:30", date: "Tomorrow", table: "7", status: "confirmed", notes: "Vegetarian options needed" },
-  { id: "r5", name: "Wolf", phone: "+49 162 3334567", partySize: 2, time: "12:30", date: "Tomorrow", table: "P1", status: "confirmed", notes: "Patio preferred" },
-];
-
-const DEMO_INVENTORY = [
-  { id: "i1", name: "Spaghetti (dry)", qty: 12.5, unit: "kg", cost: 2.40, threshold: 5, par: 20, supplier: "De Cecco", category: "Pasta", lastRestock: "2 days ago" },
-  { id: "i2", name: "Penne (dry)", qty: 8.2, unit: "kg", cost: 2.20, threshold: 5, par: 15, supplier: "De Cecco", category: "Pasta", lastRestock: "2 days ago" },
-  { id: "i3", name: "San Marzano Tomatoes", qty: 24, unit: "pcs", cost: 3.50, threshold: 10, par: 30, supplier: "Mutti", category: "Tinned", lastRestock: "1 week ago" },
-  { id: "i4", name: "Mozzarella Fior di Latte", qty: 4.8, unit: "kg", cost: 12.00, threshold: 3, par: 8, supplier: "Latteria", category: "Dairy", lastRestock: "Yesterday" },
-  { id: "i5", name: "Parmigiano Reggiano", qty: 2.1, unit: "kg", cost: 28.00, threshold: 2, par: 5, supplier: "Latteria", category: "Dairy", lastRestock: "3 days ago" },
-  { id: "i6", name: "Beef Tenderloin", qty: 3.2, unit: "kg", cost: 45.00, threshold: 2, par: 6, supplier: "Fleischer Huber", category: "Meat", lastRestock: "Today" },
-  { id: "i7", name: "Branzino (whole)", qty: 1.5, unit: "kg", cost: 22.00, threshold: 2, par: 4, supplier: "Fisch König", category: "Seafood", lastRestock: "Today" },
-  { id: "i8", name: "Olive Oil (EV)", qty: 8.5, unit: "l", cost: 14.00, threshold: 5, par: 15, supplier: "Ferraro", category: "Oils", lastRestock: "1 week ago" },
-  { id: "i9", name: "Arborio Rice", qty: 6.0, unit: "kg", cost: 4.80, threshold: 3, par: 10, supplier: "Riso Gallo", category: "Grains", lastRestock: "4 days ago" },
-  { id: "i10", name: "Fresh Basil", qty: 0.3, unit: "kg", cost: 18.00, threshold: 0.5, par: 1, supplier: "Local Farm", category: "Herbs", lastRestock: "Today" },
-  { id: "i11", name: "Chianti Classico", qty: 18, unit: "btl", cost: 12.00, threshold: 6, par: 24, supplier: "Vinoteca", category: "Wine", lastRestock: "3 days ago" },
-  { id: "i12", name: "Aperol", qty: 4, unit: "btl", cost: 16.00, threshold: 2, par: 6, supplier: "Vinoteca", category: "Spirits", lastRestock: "1 week ago" },
-];
-
-const DEMO_STAFF = [
-  { id: "s1", name: "Marco Rossi", role: "owner", hourlyRate: 0, avatar: "MR", isActive: true, email: "marco@bellacucina.de" },
-  { id: "s2", name: "Anna Schmidt", role: "manager", hourlyRate: 22, avatar: "AS", isActive: true, email: "anna@bellacucina.de" },
-  { id: "s3", name: "Luigi Bianchi", role: "chef", hourlyRate: 20, avatar: "LB", isActive: true, email: "luigi@bellacucina.de" },
-  { id: "s4", name: "Sophie Weber", role: "waiter", hourlyRate: 14, avatar: "SW", isActive: true, email: "sophie@bellacucina.de" },
-  { id: "s5", name: "Felix Müller", role: "cashier", hourlyRate: 13, avatar: "FM", isActive: true, email: "felix@bellacucina.de" },
-  { id: "s6", name: "Emma Fischer", role: "host", hourlyRate: 13, avatar: "EF", isActive: true, email: "emma@bellacucina.de" },
-  { id: "s7", name: "Luca Romano", role: "chef", hourlyRate: 18, avatar: "LR", isActive: true, email: "luca@bellacucina.de" },
-  { id: "s8", name: "Mia Hoffmann", role: "waiter", hourlyRate: 14, avatar: "MH", isActive: false, email: "mia@bellacucina.de" },
-];
-
-const DEMO_CUSTOMERS = [
-  { id: "cu1", name: "Hans Klein", email: "hans@klein.de", phone: "+49 176 1234567", visits: 24, totalSpent: 1842.50, points: 1840, tags: ["VIP", "Regular"], notes: "Prefers table 4, red wine" },
-  { id: "cu2", name: "Dr. Julia Braun", email: "braun@email.de", phone: "+49 151 9876543", visits: 12, totalSpent: 2156.00, points: 2150, tags: ["VIP", "Business"], notes: "Corporate events" },
-  { id: "cu3", name: "Maria Costa", email: "maria@costa.de", phone: "+49 172 8887654", visits: 8, totalSpent: 562.30, points: 560, tags: ["Vegetarian"], notes: "Allergic to nuts" },
-  { id: "cu4", name: "Thomas Wolf", email: "", phone: "+49 162 3334567", visits: 5, totalSpent: 234.80, points: 230, tags: [], notes: "Always orders espresso" },
-  { id: "cu5", name: "Sophie & Max Schneider", email: "schneider@email.de", phone: "+49 170 5551234", visits: 16, totalSpent: 1120.00, points: 1120, tags: ["Regular"], notes: "Anniversary March 15" },
-];
-
-const REVENUE_DATA = [
-  { day: "Mon", revenue: 2840, orders: 42, tips: 380 },
-  { day: "Tue", revenue: 2120, orders: 35, tips: 290 },
-  { day: "Wed", revenue: 3150, orders: 48, tips: 420 },
-  { day: "Thu", revenue: 3680, orders: 55, tips: 510 },
-  { day: "Fri", revenue: 5240, orders: 78, tips: 720 },
-  { day: "Sat", revenue: 6120, orders: 92, tips: 860 },
-  { day: "Sun", revenue: 4580, orders: 68, tips: 620 },
-];
-
-const HOURLY_DATA = Array.from({ length: 14 }, (_, i) => ({
-  hour: `${i + 10}:00`,
-  orders: Math.floor(Math.random() * 15) + (i >= 1 && i <= 3 ? 8 : i >= 8 && i <= 10 ? 12 : 3),
-  revenue: Math.floor(Math.random() * 800) + (i >= 1 && i <= 3 ? 400 : i >= 8 && i <= 10 ? 600 : 100),
-}));
-
-const ORDER_TYPE_DATA = [
-  { name: "Dine-in", value: 68, color: "#F59E0B" },
-  { name: "Takeout", value: 22, color: "#3B82F6" },
-  { name: "Delivery", value: 10, color: "#10B981" },
-];
-
-const POPULAR_ITEMS_DATA = [
-  { name: "Carbonara", orders: 145, revenue: 2102 },
-  { name: "Margherita", orders: 132, revenue: 1571 },
-  { name: "Bistecca", orders: 89, revenue: 2928 },
-  { name: "Bruschetta", orders: 112, revenue: 997 },
-  { name: "Risotto", orders: 98, revenue: 1656 },
-  { name: "Tiramisu", orders: 108, revenue: 961 },
-  { name: "Aperol Spritz", orders: 156, revenue: 1482 },
-  { name: "Diavola", orders: 87, revenue: 1209 },
-];
-
-// ═══════════════════════════════════════════════════════════════
-// UTILITY FUNCTIONS & COMPONENTS
-// ═══════════════════════════════════════════════════════════════
-
-function cn(...classes) { return classes.filter(Boolean).join(" "); }
-function fmt(n) { return `€${Number(n).toFixed(2)}`; }
-function elapsed(date) {
-  const mins = Math.floor((Date.now() - new Date(date).getTime()) / 60000);
-  return mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
-}
-function elapsedColor(date) {
-  const mins = Math.floor((Date.now() - new Date(date).getTime()) / 60000);
-  if (mins < 10) return "text-emerald-400";
-  if (mins < 15) return "text-amber-400";
-  return "text-red-400";
+function KPI({title,value,change,label,icon:I,trend}){
+  return(<div className="rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-5 hover:border-zinc-700/80 transition-all">
+    <div className="flex items-start justify-between"><div><p className="text-xs font-medium uppercase tracking-wider text-zinc-500">{title}</p><p className="text-2xl font-bold text-zinc-100 mt-1">{value}</p></div><div className="rounded-lg bg-amber-500/10 p-2.5"><I size={20} className="text-amber-400"/></div></div>
+    {change&&<div className="mt-3 flex items-center gap-1.5">{trend==="up"?<ArrowUpRight size={14} className="text-emerald-400"/>:<ArrowDownRight size={14} className="text-red-400"/>}<span className={cn("text-xs font-semibold",trend==="up"?"text-emerald-400":"text-red-400")}>{change}</span><span className="text-xs text-zinc-500">{label}</span></div>}
+  </div>)
 }
 
-function Badge({ children, variant = "default", className = "" }) {
-  const v = {
-    default: "bg-zinc-700/60 text-zinc-300",
-    success: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/20",
-    warning: "bg-amber-500/15 text-amber-400 border border-amber-500/20",
-    danger: "bg-red-500/15 text-red-400 border border-red-500/20",
-    info: "bg-blue-500/15 text-blue-400 border border-blue-500/20",
-    purple: "bg-purple-500/15 text-purple-400 border border-purple-500/20",
-    brand: "bg-amber-500/15 text-amber-400 border border-amber-500/20",
-  };
-  return <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium", v[variant] || v.default, className)}>{children}</span>;
-}
-
-function StatusBadge({ status }) {
-  const map = {
-    pending: { label: "Pending", variant: "warning", icon: Clock },
-    confirmed: { label: "Confirmed", variant: "info", icon: Check },
-    preparing: { label: "Preparing", variant: "purple", icon: Flame },
-    ready: { label: "Ready", variant: "success", icon: CheckCircle2 },
-    served: { label: "Served", variant: "brand", icon: UtensilsCrossed },
-    completed: { label: "Completed", variant: "success", icon: Check },
-    cancelled: { label: "Cancelled", variant: "danger", icon: X },
-    voided: { label: "Voided", variant: "danger", icon: XCircle },
-  };
-  const s = map[status] || map.pending;
-  const Icon = s.icon;
-  return <Badge variant={s.variant}><Icon size={12} />{s.label}</Badge>;
-}
-
-function KPICard({ title, value, change, changeLabel, icon: Icon, trend }) {
-  const isUp = trend === "up";
-  return (
-    <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-5 backdrop-blur-sm transition-all hover:border-zinc-700/80">
-      <div className="flex items-start justify-between">
-        <div className="space-y-1">
-          <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">{title}</p>
-          <p className="text-2xl font-bold tracking-tight text-zinc-100">{value}</p>
-        </div>
-        <div className="rounded-lg bg-amber-500/10 p-2.5"><Icon size={20} className="text-amber-400" /></div>
-      </div>
-      {change !== undefined && (
-        <div className="mt-3 flex items-center gap-1.5">
-          {isUp ? <ArrowUpRight size={14} className="text-emerald-400" /> : <ArrowDownRight size={14} className="text-red-400" />}
-          <span className={cn("text-xs font-semibold", isUp ? "text-emerald-400" : "text-red-400")}>{change}</span>
-          <span className="text-xs text-zinc-500">{changeLabel}</span>
-        </div>
-      )}
+function Modal({open,onClose,title,children,wide}){
+  if(!open)return null;
+  return(<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+    <div className={cn("w-full rounded-xl border border-zinc-800 bg-zinc-950 shadow-2xl overflow-y-auto max-h-[90vh]",wide?"max-w-2xl":"max-w-md")} onClick={e=>e.stopPropagation()}>
+      <div className="flex items-center justify-between border-b border-zinc-800 px-6 py-4"><h3 className="text-lg font-semibold text-zinc-100">{title}</h3><button onClick={onClose} className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"><X size={18}/></button></div>
+      <div className="p-6">{children}</div>
     </div>
-  );
+  </div>)
 }
 
-function useToast() {
-  const [toasts, setToasts] = useState([]);
-  const add = useCallback((msg, type = "success") => {
-    const id = Date.now();
-    setToasts(t => [...t, { id, msg, type }]);
-    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3500);
-  }, []);
-  return { toasts, add };
-}
+function Input({label,...props}){return(<div><label className="mb-1.5 block text-xs font-medium text-zinc-400">{label}</label><input className="w-full rounded-lg border border-zinc-700/80 bg-zinc-800/60 px-3.5 py-2.5 text-sm text-zinc-200 outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 placeholder:text-zinc-600" {...props}/></div>)}
+function Select({label,children,...props}){return(<div><label className="mb-1.5 block text-xs font-medium text-zinc-400">{label}</label><select className="w-full rounded-lg border border-zinc-700/80 bg-zinc-800/60 px-3.5 py-2.5 text-sm text-zinc-200 outline-none focus:border-amber-500/50" {...props}>{children}</select></div>)}
+function Btn({children,variant="primary",className="",...props}){const v=variant==="primary"?"bg-amber-500 text-black hover:bg-amber-400 font-semibold":variant==="danger"?"bg-red-600 text-white hover:bg-red-500 font-semibold":"border border-zinc-700 bg-zinc-800 text-zinc-300 hover:bg-zinc-700";return <button className={cn("rounded-lg px-4 py-2.5 text-sm transition-colors disabled:opacity-40",v,className)} {...props}>{children}</button>}
 
-function ToastContainer({ toasts }) {
-  return (
-    <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2">
-      {toasts.map(t => (
-        <div key={t.id} className={cn(
-          "animate-slide-up flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium shadow-2xl backdrop-blur-sm",
-          t.type === "success" && "border border-emerald-500/30 bg-emerald-500/15 text-emerald-300",
-          t.type === "error" && "border border-red-500/30 bg-red-500/15 text-red-300",
-          t.type === "info" && "border border-blue-500/30 bg-blue-500/15 text-blue-300",
-        )}>
-          {t.type === "success" && <CheckCircle2 size={16} />}
-          {t.type === "error" && <XCircle size={16} />}
-          {t.type === "info" && <Info size={16} />}
-          {t.msg}
-        </div>
-      ))}
-    </div>
-  );
-}
+function useToast(){const[t,setT]=useState([]);const add=useCallback((m,type="success")=>{const id=uid();setT(p=>[...p,{id,m,type}]);setTimeout(()=>setT(p=>p.filter(x=>x.id!==id)),3500)},[]);return{toasts:t,add}}
+function Toasts({toasts}){return <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2">{toasts.map(t=><div key={t.id} className={cn("animate-slide-up flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium shadow-2xl backdrop-blur-sm",t.type==="success"&&"border border-emerald-500/30 bg-emerald-500/15 text-emerald-300",t.type==="error"&&"border border-red-500/30 bg-red-500/15 text-red-300",t.type==="info"&&"border border-blue-500/30 bg-blue-500/15 text-blue-300")}>{t.type==="success"?<CheckCircle2 size={16}/>:t.type==="error"?<XCircle size={16}/>:<Info size={16}/>}{t.m}</div>)}</div>}
 
-// ═══════════════════════════════════════════════════════════════
-// AUTH SCREEN
-// ═══════════════════════════════════════════════════════════════
-
-function AuthScreen({ onLogin }) {
-  const [loading, setLoading] = useState(false);
-  const handleSubmit = () => { setLoading(true); setTimeout(() => { setLoading(false); onLogin(); }, 1200); };
-
-  return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-zinc-950">
-      <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")` }} />
-      <div className="absolute left-1/2 top-1/3 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-500/5 blur-[128px]" />
+/* ═══════════════════════════════════════════════════════════════
+   AUTH SCREEN
+   ═══════════════════════════════════════════════════════════════ */
+function AuthScreen({onLogin}){
+  const[email,setEmail]=useState("");const[pass,setPass]=useState("");const[loading,setLoading]=useState(false);const[err,setErr]=useState("");
+  const submit=()=>{
+    if(!email.trim()||!pass.trim()){setErr("Please fill in all fields");return}
+    setLoading(true);setErr("");setTimeout(()=>{setLoading(false);onLogin(email)},1000);
+  };
+  return(
+    <div className="relative flex min-h-screen items-center justify-center bg-zinc-950">
+      <div className="absolute inset-0 opacity-[0.03]" style={{backgroundImage:`url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`}}/>
+      <div className="absolute left-1/2 top-1/3 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-500/5 blur-[128px]"/>
       <div className="relative z-10 w-full max-w-md px-4">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/20">
-            <UtensilsCrossed size={32} className="text-white" />
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-100" style={{ fontFamily: "'Georgia', serif" }}>Bella Cucina</h1>
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/20"><UtensilsCrossed size={32} className="text-white"/></div>
+          <h1 className="text-3xl font-bold text-zinc-100" style={{fontFamily:"Georgia,serif"}}>Bella Cucina</h1>
           <p className="mt-1 text-sm text-zinc-500">Restaurant Management System</p>
         </div>
-        <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/80 p-8 shadow-2xl backdrop-blur-sm">
-          <h2 className="mb-6 text-xl font-semibold text-zinc-100">Welcome back</h2>
-          <div className="mb-4">
-            <label className="mb-1.5 block text-xs font-medium text-zinc-400">Email</label>
-            <input defaultValue="marco@bellacucina.de" className="w-full rounded-lg border border-zinc-700/80 bg-zinc-800/60 px-3.5 py-2.5 text-sm text-zinc-200 outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20" />
+        <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/80 p-8 shadow-2xl">
+          <h2 className="mb-6 text-xl font-semibold text-zinc-100">Sign in to your account</h2>
+          {err&&<div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-400">{err}</div>}
+          <div className="space-y-4">
+            <Input label="Email" type="email" placeholder="you@restaurant.com" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()}/>
+            <Input label="Password" type="password" placeholder="Enter your password" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()}/>
           </div>
-          <div className="mb-6">
-            <label className="mb-1.5 block text-xs font-medium text-zinc-400">Password</label>
-            <input type="password" defaultValue="password123" className="w-full rounded-lg border border-zinc-700/80 bg-zinc-800/60 px-3.5 py-2.5 text-sm text-zinc-200 outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20" />
-          </div>
-          <button onClick={handleSubmit} disabled={loading} className="w-full rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 transition-all hover:brightness-110 disabled:opacity-50">
-            {loading ? <span className="inline-flex items-center gap-2"><RefreshCw size={14} className="animate-spin" />Authenticating...</span> : "Sign In"}
-          </button>
-          <button className="mt-3 w-full rounded-lg border border-zinc-700/50 bg-zinc-800/40 px-4 py-2.5 text-sm font-medium text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300 transition-colors">
-            <span className="inline-flex items-center gap-2"><Globe size={14} />Sign in with Google</span>
-          </button>
-          <div className="mt-6 flex items-center justify-between text-xs">
-            <button className="text-amber-400 hover:text-amber-300">Create new restaurant</button>
-            <button className="text-zinc-500 hover:text-zinc-400">Forgot password?</button>
-          </div>
+          <Btn className="w-full mt-6" onClick={submit} disabled={loading}>{loading?<span className="inline-flex items-center gap-2"><RefreshCw size={14} className="animate-spin"/>Signing in...</span>:"Sign In"}</Btn>
+          <p className="mt-4 text-center text-xs text-zinc-600">Demo: use any email &amp; password to sign in</p>
         </div>
         <div className="mt-6 flex items-center justify-center gap-4 text-[10px] text-zinc-600">
-          <span className="inline-flex items-center gap-1"><Lock size={10} />256-bit SSL</span>
-          <span className="inline-flex items-center gap-1"><ShieldCheck size={10} />RBAC Protected</span>
-          <span className="inline-flex items-center gap-1"><KeyRound size={10} />MFA Ready</span>
+          <span className="inline-flex items-center gap-1"><Lock size={10}/>256-bit SSL</span>
+          <span className="inline-flex items-center gap-1"><ShieldCheck size={10}/>RBAC Protected</span>
+          <span className="inline-flex items-center gap-1"><KeyRound size={10}/>MFA Ready</span>
         </div>
       </div>
     </div>
   );
 }
 
-// ═══════════════════════════════════════════════════════════════
-// PAGE COMPONENTS (Dashboard, Orders, Kitchen, POS, Menu, etc.)
-// ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════════
+   MAIN APP — All state lives here, flows to every page
+   ═══════════════════════════════════════════════════════════════ */
+export default function RestaurantApp(){
+  const[isAuth,setIsAuth]=useState(false);
+  const[currentUser,setCurrentUser]=useState(null);
+  const[page,setPage]=useState("dashboard");
+  const[sidebarOpen,setSidebarOpen]=useState(true);
+  const[tick,setTick]=useState(0);
+  const toast=useToast();
 
-function DashboardPage({ toast }) {
-  const todayRevenue = DEMO_ORDERS.reduce((s, o) => s + o.total, 0);
-  const activeOrders = DEMO_ORDERS.filter(o => !["completed", "cancelled", "voided"].includes(o.status)).length;
-  const tablesOccupied = DEMO_TABLES.filter(t => t.status === "occupied").length;
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between"><div><h1 className="text-2xl font-bold text-zinc-100">Dashboard</h1><p className="text-sm text-zinc-500">Real-time overview of Bella Cucina</p></div><div className="flex items-center gap-2"><Badge variant="success"><CircleDot size={8} className="animate-pulse" /> Live</Badge><span className="text-xs text-zinc-500">{new Date().toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" })}</span></div></div>
+  // ── Core state (shared across all pages) ──
+  const[orders,setOrders]=useState([]);
+  const[nextOrderNum,setNextOrderNum]=useState(1001);
+  const[menu,setMenu]=useState(seedMenu);
+  const[categories]=useState(seedCategories);
+  const[tables,setTables]=useState(()=>seedTables.map(t=>({...t,status:"available",orderId:null,guests:0,server:null,seatedAt:null})));
+  const[inventory,setInventory]=useState(seedInventory);
+  const[staff]=useState(seedStaff);
+  const[customers,setCustomers]=useState(seedCustomers);
+  const[reservations,setReservations]=useState(seedReservations);
+
+  // Live clock
+  useEffect(()=>{const i=setInterval(()=>setTick(t=>t+1),15000);return()=>clearInterval(i)},[]);
+
+  // ── Derived data ──
+  const activeOrders=orders.filter(o=>!["completed","cancelled"].includes(o.status));
+  const completedOrders=orders.filter(o=>o.status==="completed");
+  const todayRevenue=completedOrders.reduce((s,o)=>s+o.total,0);
+  const occupiedCount=tables.filter(t=>t.status==="occupied").length;
+
+  // ── Core actions (used by multiple pages) ──
+  const createOrder=(tableId,items,type="dine_in",customerName="")=>{
+    const sub=items.reduce((s,i)=>s+i.price*i.qty,0);
+    const tax=+(sub*0.19).toFixed(2);
+    const order={id:uid(),number:nextOrderNum,tableId,tableNum:tableId?tables.find(t=>t.id===tableId)?.number:"—",type,customerName,status:"confirmed",items:items.map(i=>({id:uid(),menuItemId:i.id,name:i.name,qty:i.qty,price:i.price,status:"pending",station:i.station,notes:i.notes||""})),subtotal:+sub.toFixed(2),tax,tip:0,total:+(sub+tax).toFixed(2),guests:1,waiter:currentUser||"Staff",createdAt:new Date().toISOString(),completedAt:null};
+    setOrders(p=>[order,...p]);
+    setNextOrderNum(n=>n+1);
+    if(tableId){setTables(p=>p.map(t=>t.id===tableId?{...t,status:"occupied",orderId:order.id,guests:order.guests,server:order.waiter,seatedAt:new Date().toISOString()}:t))}
+    // Deduct inventory (simplified)
+    setInventory(p=>p.map(inv=>{
+      const used=items.reduce((s,i)=>s+(i.qty*0.1),0); // simplified deduction
+      return inv.qty>0?{...inv,qty:Math.max(0,+(inv.qty-used*0.05).toFixed(3))}:inv;
+    }));
+    toast.add(`Order #${nextOrderNum} created!`);
+    return order;
+  };
+
+  const updateOrderStatus=(orderId,newStatus)=>{
+    setOrders(p=>p.map(o=>{
+      if(o.id!==orderId)return o;
+      const updated={...o,status:newStatus};
+      if(newStatus==="completed"){updated.completedAt=new Date().toISOString()}
+      return updated;
+    }));
+    if(newStatus==="completed"||newStatus==="cancelled"){
+      const order=orders.find(o=>o.id===orderId);
+      if(order?.tableId){setTables(p=>p.map(t=>t.id===order.tableId?{...t,status:"cleaning",orderId:null,guests:0,server:null}:t));
+        setTimeout(()=>setTables(p=>p.map(t=>t.id===order.tableId&&t.status==="cleaning"?{...t,status:"available"}:t)),5000);
+      }
+    }
+    toast.add(`Order status → ${newStatus}`);
+  };
+
+  const bumpItem=(orderId,itemId)=>{
+    setOrders(p=>p.map(o=>{
+      if(o.id!==orderId)return o;
+      const items=o.items.map(i=>i.id===itemId?{...i,status:i.status==="pending"?"preparing":i.status==="preparing"?"ready":"served"}:i);
+      const allReady=items.every(i=>["ready","served"].includes(i.status));
+      const allServed=items.every(i=>i.status==="served");
+      return{...o,items,status:allServed?"served":allReady?"ready":items.some(i=>i.status==="preparing")?"preparing":o.status};
+    }));
+  };
+
+  const bumpAllItems=(orderId)=>{
+    setOrders(p=>p.map(o=>{
+      if(o.id!==orderId)return o;
+      const items=o.items.map(i=>({...i,status:i.status==="pending"?"preparing":i.status==="preparing"?"ready":"served"}));
+      const allReady=items.every(i=>["ready","served"].includes(i.status));
+      return{...o,items,status:allReady?"ready":"preparing"};
+    }));
+    toast.add("All items bumped!");
+  };
+
+  const seatReservation=(resId)=>{
+    const res=reservations.find(r=>r.id===resId);
+    if(!res)return;
+    setReservations(p=>p.map(r=>r.id===resId?{...r,status:"seated"}:r));
+    if(res.tableId){setTables(p=>p.map(t=>t.id===res.tableId?{...t,status:"occupied",guests:res.size,server:"Host",seatedAt:new Date().toISOString()}:t))}
+    toast.add(`${res.name} seated at table ${tables.find(t=>t.id===res.tableId)?.number||"?"}`);
+  };
+
+  if(!isAuth)return <AuthScreen onLogin={(email)=>{setIsAuth(true);setCurrentUser(email.split("@")[0])}}/>;
+
+  // ═══════════════════════════════════════════════════════════
+  // PAGE: DASHBOARD
+  // ═══════════════════════════════════════════════════════════
+  const Dashboard=()=>{
+    const revData=[{day:"Mon",rev:2840},{day:"Tue",rev:2120},{day:"Wed",rev:3150},{day:"Thu",rev:3680},{day:"Fri",rev:5240},{day:"Sat",rev:6120},{day:"Sun",rev:todayRevenue||4580}];
+    return(<div className="space-y-6">
+      <div className="flex items-center justify-between"><div><h1 className="text-2xl font-bold text-zinc-100">Dashboard</h1><p className="text-sm text-zinc-500">Welcome back, {currentUser}</p></div><Badge variant="success"><CircleDot size={8} className="animate-pulse"/>Live</Badge></div>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KPICard title="Today's Revenue" value={fmt(todayRevenue)} change="+12.5%" changeLabel="vs yesterday" icon={DollarSign} trend="up" />
-        <KPICard title="Active Orders" value={activeOrders} change="+3" changeLabel="from last hour" icon={ShoppingBag} trend="up" />
-        <KPICard title="Tables Occupied" value={`${tablesOccupied}/${DEMO_TABLES.length}`} change={`${Math.round(tablesOccupied / DEMO_TABLES.length * 100)}%`} changeLabel="occupancy" icon={Armchair} trend="up" />
-        <KPICard title="Avg Ticket" value={fmt(todayRevenue / DEMO_ORDERS.length)} change="+€4.20" changeLabel="vs last week" icon={Receipt} trend="up" />
+        <KPI title="Today's Revenue" value={fmt(todayRevenue)} change={completedOrders.length>0?"+"+completedOrders.length+" orders":null} label="completed" icon={DollarSign} trend="up"/>
+        <KPI title="Active Orders" value={activeOrders.length} icon={ShoppingBag} trend="up"/>
+        <KPI title="Tables" value={`${occupiedCount}/${tables.length}`} change={`${Math.round(occupiedCount/tables.length*100)}%`} label="occupancy" icon={Armchair} trend="up"/>
+        <KPI title="Avg Ticket" value={completedOrders.length?fmt(todayRevenue/completedOrders.length):"€0.00"} icon={Receipt} trend="up"/>
       </div>
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-5">
-          <div className="mb-4 flex items-center justify-between"><h2 className="text-sm font-semibold text-zinc-300">Weekly Revenue</h2><Badge variant="brand">This Week</Badge></div>
-          <ResponsiveContainer width="100%" height={260}>
-            <AreaChart data={REVENUE_DATA}><defs><linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#F59E0B" stopOpacity={0.3} /><stop offset="95%" stopColor="#F59E0B" stopOpacity={0} /></linearGradient></defs><CartesianGrid strokeDasharray="3 3" stroke="#27272a" /><XAxis dataKey="day" stroke="#52525b" fontSize={12} /><YAxis stroke="#52525b" fontSize={12} tickFormatter={v => `€${v}`} /><Tooltip contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: "8px", fontSize: "12px" }} /><Area type="monotone" dataKey="revenue" stroke="#F59E0B" fill="url(#revGrad)" strokeWidth={2} /></AreaChart>
-          </ResponsiveContainer>
+          <h2 className="mb-4 text-sm font-semibold text-zinc-300">Weekly Revenue</h2>
+          <ResponsiveContainer width="100%" height={240}><AreaChart data={revData}><defs><linearGradient id="rg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#F59E0B" stopOpacity={0.3}/><stop offset="95%" stopColor="#F59E0B" stopOpacity={0}/></linearGradient></defs><CartesianGrid strokeDasharray="3 3" stroke="#27272a"/><XAxis dataKey="day" stroke="#52525b" fontSize={12}/><YAxis stroke="#52525b" fontSize={12} tickFormatter={v=>`€${v}`}/><Tooltip contentStyle={{background:"#18181b",border:"1px solid #3f3f46",borderRadius:"8px",fontSize:"12px"}}/><Area type="monotone" dataKey="rev" stroke="#F59E0B" fill="url(#rg)" strokeWidth={2}/></AreaChart></ResponsiveContainer>
         </div>
         <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-5">
-          <h2 className="mb-4 text-sm font-semibold text-zinc-300">Active Orders</h2>
-          <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1">
-            {DEMO_ORDERS.filter(o => !["completed", "cancelled"].includes(o.status)).map(order => (
-              <div key={order.id} className="flex items-center justify-between rounded-lg border border-zinc-800/60 bg-zinc-800/30 p-3 hover:bg-zinc-800/50 transition-colors">
-                <div><div className="flex items-center gap-2"><span className="text-sm font-bold text-zinc-200">#{order.number}</span><span className="text-xs text-zinc-500">T{order.tableNum}</span>{order.priority && <Flame size={12} className="text-red-400" />}</div><p className="text-xs text-zinc-500">{order.items.length} items · {fmt(order.total)}</p></div>
-                <div className="text-right"><StatusBadge status={order.status} /><p className={cn("mt-1 text-xs font-mono", elapsedColor(order.createdAt))}>{elapsed(order.createdAt)}</p></div>
+          <h2 className="mb-4 text-sm font-semibold text-zinc-300">Active Orders ({activeOrders.length})</h2>
+          <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+            {activeOrders.length===0?<p className="text-sm text-zinc-500 text-center py-8">No active orders — create one from POS</p>:
+            activeOrders.slice(0,8).map(o=>(
+              <div key={o.id} className="flex items-center justify-between rounded-lg border border-zinc-800/60 bg-zinc-800/30 p-3 hover:bg-zinc-800/50 cursor-pointer transition-colors" onClick={()=>setPage("orders")}>
+                <div><span className="text-sm font-bold text-zinc-200">#{o.number}</span><span className="ml-2 text-xs text-zinc-500">{o.tableNum!=="—"?`T${o.tableNum}`:o.type}</span>{o.items.some(i=>i.notes)&&<Flame size={11} className="inline ml-1 text-red-400"/>}<p className="text-xs text-zinc-500">{o.items.length} items · {fmt(o.total)}</p></div>
+                <div className="text-right"><StatusBadge status={o.status}/><p className={cn("mt-1 text-xs font-mono",urgency(o.createdAt))}>{fmtTime(o.createdAt)}</p></div>
               </div>
             ))}
           </div>
         </div>
       </div>
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-5">
-          <h2 className="mb-4 text-sm font-semibold text-zinc-300">Popular Items</h2>
-          <ResponsiveContainer width="100%" height={220}>
-            <ReBarChart data={POPULAR_ITEMS_DATA.slice(0, 6)} layout="vertical"><CartesianGrid strokeDasharray="3 3" stroke="#27272a" /><XAxis type="number" stroke="#52525b" fontSize={11} /><YAxis type="category" dataKey="name" stroke="#52525b" fontSize={11} width={80} /><Tooltip contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: "8px", fontSize: "12px" }} /><Bar dataKey="orders" fill="#F59E0B" radius={[0, 4, 4, 0]} /></ReBarChart>
-          </ResponsiveContainer>
-        </div>
-        <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-5">
-          <h2 className="mb-4 text-sm font-semibold text-zinc-300">Order Type Breakdown</h2>
-          <div className="flex items-center gap-6">
-            <ResponsiveContainer width="50%" height={200}>
-              <RePieChart><Pie data={ORDER_TYPE_DATA} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" stroke="none">{ORDER_TYPE_DATA.map((e, i) => <Cell key={i} fill={e.color} />)}</Pie><Tooltip contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: "8px", fontSize: "12px" }} /></RePieChart>
-            </ResponsiveContainer>
-            <div className="space-y-3">{ORDER_TYPE_DATA.map(d => (<div key={d.name} className="flex items-center gap-2"><div className="h-3 w-3 rounded-full" style={{ background: d.color }} /><span className="text-xs text-zinc-400">{d.name}</span><span className="text-xs font-bold text-zinc-200">{d.value}%</span></div>))}</div>
-          </div>
+      {inventory.filter(i=>i.qty<=i.threshold).length>0&&<div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4"><div className="flex items-center gap-2 mb-2"><AlertTriangle size={14} className="text-red-400"/><span className="text-sm font-semibold text-red-300">Low Stock</span></div><div className="flex flex-wrap gap-2">{inventory.filter(i=>i.qty<=i.threshold).map(i=><Badge key={i.id} variant="danger">{i.name}: {i.qty}{i.unit}</Badge>)}</div></div>}
+      <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-5">
+        <h2 className="mb-3 text-sm font-semibold text-zinc-300">Upcoming Reservations</h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {reservations.filter(r=>r.status==="confirmed").slice(0,3).map(r=>(<div key={r.id} className="flex items-center justify-between rounded-lg border border-zinc-800/60 bg-zinc-800/30 p-3"><div><p className="font-semibold text-zinc-200 text-sm">{r.name}</p><p className="text-xs text-zinc-500">{r.size} guests · {r.time} · T{tables.find(t=>t.id===r.tableId)?.number}</p>{r.notes&&<p className="text-xs text-amber-400/70 mt-0.5">{r.notes}</p>}</div><button onClick={()=>seatReservation(r.id)} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500">Seat</button></div>))}
+          {reservations.filter(r=>r.status==="confirmed").length===0&&<p className="text-sm text-zinc-500 col-span-3 text-center py-4">No pending reservations</p>}
         </div>
       </div>
-      {DEMO_INVENTORY.filter(i => i.qty <= i.threshold).length > 0 && (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-5"><div className="mb-3 flex items-center gap-2"><AlertTriangle size={16} className="text-red-400" /><h2 className="text-sm font-semibold text-red-300">Low Stock Alerts</h2></div><div className="flex flex-wrap gap-2">{DEMO_INVENTORY.filter(i => i.qty <= i.threshold).map(item => (<Badge key={item.id} variant="danger">{item.name}: {item.qty} {item.unit}</Badge>))}</div></div>
-      )}
-    </div>
-  );
-}
-
-function OrdersPage({ toast }) {
-  const [filter, setFilter] = useState("all");
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const filtered = filter === "all" ? DEMO_ORDERS : DEMO_ORDERS.filter(o => o.status === filter);
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between"><div><h1 className="text-2xl font-bold text-zinc-100">Orders</h1><p className="text-sm text-zinc-500">{DEMO_ORDERS.length} orders today</p></div><button className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-black hover:bg-amber-400"><Plus size={16} />New Order</button></div>
-      <div className="flex flex-wrap gap-2">{["all", "pending", "confirmed", "preparing", "ready", "served", "completed"].map(f => (<button key={f} onClick={() => setFilter(f)} className={cn("rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors", filter === f ? "bg-amber-500/15 text-amber-400 border border-amber-500/30" : "bg-zinc-800/60 text-zinc-400 border border-zinc-800 hover:bg-zinc-800")}>{f === "all" ? `All (${DEMO_ORDERS.length})` : f}</button>))}</div>
-      <div className="overflow-x-auto rounded-xl border border-zinc-800/80"><table className="w-full text-sm"><thead><tr className="border-b border-zinc-800 bg-zinc-900/80"><th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500">Order</th><th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500">Table</th><th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500">Server</th><th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500">Items</th><th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500">Status</th><th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500">Total</th><th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500">Time</th></tr></thead>
-        <tbody className="divide-y divide-zinc-800/60">{filtered.map(order => (<tr key={order.id} onClick={() => setSelectedOrder(order)} className="bg-zinc-900/40 hover:bg-zinc-800/40 cursor-pointer transition-colors"><td className="px-4 py-3"><div className="flex items-center gap-2"><span className="font-bold text-zinc-200">#{order.number}</span>{order.priority && <Flame size={13} className="text-red-400" />}{order.type !== "dine_in" && <Badge variant="info" className="text-[10px]">takeout</Badge>}</div></td><td className="px-4 py-3 text-zinc-400">{order.tableNum}</td><td className="px-4 py-3 text-zinc-400">{order.waiter}</td><td className="px-4 py-3 text-zinc-400">{order.items.length}</td><td className="px-4 py-3"><StatusBadge status={order.status} /></td><td className="px-4 py-3 font-semibold text-zinc-200">{fmt(order.total)}</td><td className={cn("px-4 py-3 font-mono text-xs", elapsedColor(order.createdAt))}>{elapsed(order.createdAt)}</td></tr>))}</tbody></table></div>
-      {selectedOrder && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm" onClick={() => setSelectedOrder(null)}>
-          <div className="h-full w-full max-w-lg overflow-y-auto border-l border-zinc-800 bg-zinc-950 p-6" onClick={e => e.stopPropagation()}>
-            <div className="mb-6 flex items-center justify-between"><div><h2 className="text-xl font-bold text-zinc-100">Order #{selectedOrder.number}</h2><p className="text-sm text-zinc-500">Table {selectedOrder.tableNum} · {selectedOrder.waiter}</p></div><button onClick={() => setSelectedOrder(null)} className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-800"><X size={20} /></button></div>
-            <div className="mb-4 flex items-center gap-2"><StatusBadge status={selectedOrder.status} /><span className={cn("text-xs font-mono", elapsedColor(selectedOrder.createdAt))}>{elapsed(selectedOrder.createdAt)}</span></div>
-            <div className="mb-6 space-y-2">{selectedOrder.items.map(item => (<div key={item.id} className="flex items-center justify-between rounded-lg border border-zinc-800/60 bg-zinc-900/60 p-3"><div><div className="flex items-center gap-2"><span className="font-medium text-zinc-200">{item.qty}× {item.name}</span><Badge className="text-[10px]">{item.station}</Badge></div>{item.notes && <p className="mt-0.5 text-xs text-amber-400/80">Note: {item.notes}</p>}</div><div className="flex items-center gap-3"><StatusBadge status={item.status} /><span className="text-sm font-semibold text-zinc-300">{fmt(item.price * item.qty)}</span></div></div>))}</div>
-            <div className="space-y-2 rounded-lg border border-zinc-800/60 bg-zinc-800/30 p-4"><div className="flex justify-between text-sm text-zinc-400"><span>Subtotal</span><span>{fmt(selectedOrder.subtotal)}</span></div><div className="flex justify-between text-sm text-zinc-400"><span>Tax (19%)</span><span>{fmt(selectedOrder.tax)}</span></div>{selectedOrder.tip > 0 && <div className="flex justify-between text-sm text-zinc-400"><span>Tip</span><span>{fmt(selectedOrder.tip)}</span></div>}<div className="flex justify-between border-t border-zinc-700 pt-2 text-base font-bold text-zinc-100"><span>Total</span><span>{fmt(selectedOrder.total)}</span></div></div>
-            <button onClick={() => { toast.add(`Order #${selectedOrder.number} updated`); setSelectedOrder(null); }} className="mt-6 w-full rounded-lg bg-amber-500 py-2.5 text-sm font-semibold text-black hover:bg-amber-400">Advance Status</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function KitchenPage({ toast }) {
-  const [station, setStation] = useState("all");
-  const kitchenOrders = DEMO_ORDERS.filter(o => ["confirmed", "preparing", "ready"].includes(o.status));
-  const filteredOrders = kitchenOrders.map(order => ({ ...order, items: station === "all" ? order.items.filter(i => i.status !== "served") : order.items.filter(i => i.station === station && i.status !== "served") })).filter(o => o.items.length > 0);
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between"><div className="flex items-center gap-3"><h1 className="text-2xl font-bold text-zinc-100">Kitchen Display</h1><Badge variant="success"><CircleDot size={8} className="animate-pulse" /> Live</Badge></div><div className="flex items-center gap-2"><Volume2 size={16} className="text-zinc-500" /><span className="text-xs text-zinc-500">Sound On</span></div></div>
-      <div className="flex gap-2">{["all", "grill", "pasta", "pizza", "salad", "bar"].map(s => (<button key={s} onClick={() => setStation(s)} className={cn("rounded-lg px-4 py-2 text-sm font-medium capitalize transition-colors", station === s ? "bg-amber-500 text-black" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700")}>{s}</button>))}</div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {filteredOrders.map(order => {
-          const mins = Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 60000);
-          const urgencyBg = mins > 15 ? "border-red-500/40 bg-red-500/5" : mins > 10 ? "border-amber-500/40 bg-amber-500/5" : "border-zinc-800/80 bg-zinc-900/70";
-          return (
-            <div key={order.id} className={cn("rounded-xl border p-4", urgencyBg)}>
-              <div className="mb-3 flex items-center justify-between"><div className="flex items-center gap-2"><span className="text-lg font-black text-zinc-100">#{order.number}</span>{order.priority && <Flame size={14} className="text-red-400 animate-pulse" />}</div><div className="text-right"><Badge variant={order.type === "dine_in" ? "default" : "info"}>{order.type === "dine_in" ? `T${order.tableNum}` : "Takeout"}</Badge><p className={cn("mt-0.5 text-xs font-mono font-bold", mins > 15 ? "text-red-400" : mins > 10 ? "text-amber-400" : "text-emerald-400")}>{mins}m</p></div></div>
-              <p className="mb-2 text-xs text-zinc-500">{order.waiter} · {order.guests} guests</p>
-              <div className="space-y-1.5">{order.items.map(item => (<div key={item.id} className={cn("flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm", item.status === "ready" ? "bg-emerald-500/10 line-through opacity-50" : item.status === "preparing" ? "bg-blue-500/10" : "bg-zinc-800/50")}><div className="flex-1"><span className={cn("font-medium", item.status === "ready" ? "text-emerald-400" : "text-zinc-200")}>{item.qty}× {item.name}</span>{item.notes && <p className="text-[11px] font-semibold text-red-400">{item.notes}</p>}</div><button onClick={() => toast.add(`${item.name} bumped!`)} className={cn("rounded-md px-2 py-1 text-xs font-semibold", item.status === "ready" ? "bg-emerald-500/20 text-emerald-400" : "bg-zinc-700 text-zinc-300 hover:bg-amber-500 hover:text-black")}>{item.status === "ready" ? "✓" : "BUMP"}</button></div>))}</div>
-              <button onClick={() => toast.add(`Order #${order.number} bumped!`)} className="mt-3 w-full rounded-lg bg-emerald-600 py-2 text-xs font-bold uppercase text-white hover:bg-emerald-500">Bump All Ready</button>
-            </div>
-          );
-        })}
-      </div>
-      {filteredOrders.length === 0 && <div className="flex flex-col items-center justify-center py-16 text-center"><div className="mb-4 rounded-full bg-zinc-800/60 p-4"><ChefHat size={32} className="text-zinc-500" /></div><p className="text-lg font-semibold text-zinc-300">Kitchen is clear!</p><p className="mt-1 text-sm text-zinc-500">No active tickets for this station</p></div>}
-    </div>
-  );
-}
-
-function MenuPage({ toast }) {
-  const [selectedCat, setSelectedCat] = useState("all");
-  const [view, setView] = useState("grid");
-  const items = selectedCat === "all" ? DEMO_MENU : DEMO_MENU.filter(m => m.category === selectedCat);
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between"><div><h1 className="text-2xl font-bold text-zinc-100">Menu Management</h1><p className="text-sm text-zinc-500">{DEMO_MENU.length} items · {DEMO_CATEGORIES.length} categories</p></div><div className="flex items-center gap-2"><button onClick={() => setView(view === "grid" ? "list" : "grid")} className="rounded-lg border border-zinc-700 bg-zinc-800 p-2 text-zinc-400 hover:text-zinc-200">{view === "grid" ? <List size={16} /> : <Grid3X3 size={16} />}</button><button className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-black hover:bg-amber-400"><Plus size={16} />Add Item</button></div></div>
-      <div className="flex gap-3 overflow-x-auto pb-2"><button onClick={() => setSelectedCat("all")} className={cn("shrink-0 rounded-xl px-4 py-3 text-sm font-medium transition-all", selectedCat === "all" ? "bg-amber-500/15 text-amber-400 border border-amber-500/30" : "bg-zinc-800/60 text-zinc-400 border border-zinc-800 hover:bg-zinc-800")}>All ({DEMO_MENU.length})</button>{DEMO_CATEGORIES.map(cat => (<button key={cat.id} onClick={() => setSelectedCat(cat.id)} className={cn("shrink-0 rounded-xl px-4 py-3 text-sm font-medium transition-all", selectedCat === cat.id ? "bg-amber-500/15 text-amber-400 border border-amber-500/30" : "bg-zinc-800/60 text-zinc-400 border border-zinc-800 hover:bg-zinc-800")}>{cat.icon} {cat.name}</button>))}</div>
-      <div className={cn(view === "grid" ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "space-y-2")}>
-        {items.map(item => { const cat = DEMO_CATEGORIES.find(c => c.id === item.category); const margin = item.cost ? Math.round((1 - item.cost / item.price) * 100) : null; return (
-          <div key={item.id} className={cn("group rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-4 hover:border-zinc-700 transition-all", !item.available && "opacity-50")}>
-            <div className="mb-3 flex items-center justify-between"><Badge variant={item.available ? "success" : "danger"}>{item.available ? "Available" : "86'd"}</Badge><span className="text-lg">{cat?.icon}</span></div>
-            <h3 className="text-sm font-bold text-zinc-200">{item.name}</h3>
-            <div className="mt-2 flex items-baseline gap-2"><span className="text-xl font-black text-amber-400">{fmt(item.price)}</span>{item.cost && <span className="text-xs text-zinc-500">Cost: {fmt(item.cost)}</span>}</div>
-            {margin && <div className="mt-2 flex items-center gap-2"><div className="h-1.5 flex-1 rounded-full bg-zinc-800"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${margin}%` }} /></div><span className="text-xs text-zinc-500">{margin}%</span></div>}
-            <div className="mt-3 flex flex-wrap gap-1"><Badge className="text-[10px]"><Clock size={10} /> {item.prepTime}m</Badge>{item.calories && <Badge className="text-[10px]">{item.calories}cal</Badge>}<Badge className="text-[10px]">{item.station}</Badge></div>
-            {item.allergens.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{item.allergens.map(a => <Badge key={a} variant="warning" className="text-[10px]">{a}</Badge>)}</div>}
-            <div className="mt-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button className="flex-1 rounded-md bg-zinc-800 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700"><Edit size={12} className="inline mr-1" />Edit</button><button onClick={() => toast.add(`${item.name} toggled`)} className="rounded-md bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700"><EyeOff size={12} /></button></div>
-          </div>
-        ); })}
-      </div>
-    </div>
-  );
-}
-
-function TablesPage({ toast }) {
-  const [section, setSection] = useState("all");
-  const tables = section === "all" ? DEMO_TABLES : DEMO_TABLES.filter(t => t.section === section);
-  const sections = [...new Set(DEMO_TABLES.map(t => t.section))];
-  const statusColor = (s) => ({ available: "border-emerald-500/50 bg-emerald-500/10", occupied: "border-red-500/50 bg-red-500/10", reserved: "border-amber-500/50 bg-amber-500/10", cleaning: "border-zinc-500/50 bg-zinc-500/10", blocked: "border-zinc-600/50 bg-zinc-600/10" }[s]);
-  const statusDot = (s) => ({ available: "bg-emerald-500", occupied: "bg-red-500", reserved: "bg-amber-500", cleaning: "bg-zinc-500", blocked: "bg-zinc-600" }[s]);
-  return (
-    <div className="space-y-6">
-      <div><h1 className="text-2xl font-bold text-zinc-100">Table Management</h1><p className="text-sm text-zinc-500">{DEMO_TABLES.filter(t => t.status === "occupied").length} occupied · {DEMO_TABLES.filter(t => t.status === "available").length} available</p></div>
-      <div className="flex flex-wrap items-center gap-4">{["available", "occupied", "reserved", "cleaning"].map(s => (<span key={s} className="inline-flex items-center gap-1.5 text-xs text-zinc-400 capitalize"><span className={cn("h-2.5 w-2.5 rounded-full", statusDot(s))} />{s}</span>))}<div className="mx-2 h-4 w-px bg-zinc-700" />{["all", ...sections].map(s => (<button key={s} onClick={() => setSection(s)} className={cn("rounded-lg px-3 py-1.5 text-xs font-medium capitalize", section === s ? "bg-amber-500/15 text-amber-400" : "text-zinc-500 hover:text-zinc-300")}>{s}</button>))}</div>
-      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">{tables.map(table => (<button key={table.id} onClick={() => toast.add(`Table ${table.number}: ${table.status}`, "info")} className={cn("group rounded-xl border p-4 text-left transition-all hover:scale-[1.03]", statusColor(table.status))}><div className="flex items-center justify-between"><div className="flex items-center gap-2">{table.number.startsWith("P") || table.number.startsWith("B") ? <Circle size={14} className="text-zinc-500" /> : <Square size={14} className="text-zinc-500" />}<span className="text-lg font-black text-zinc-200">T{table.number}</span></div><span className={cn("h-2.5 w-2.5 rounded-full", statusDot(table.status))} /></div><div className="mt-2 text-xs text-zinc-500"><span className="inline-flex items-center gap-1"><Users size={11} />{table.status === "occupied" ? `${table.guests}/${table.capacity}` : `0/${table.capacity}`}</span><span className="ml-2 capitalize">{table.section}</span></div>{table.status === "occupied" && <div className="mt-2"><p className="text-xs text-zinc-400">{table.server}</p><p className={cn("text-xs font-mono font-bold", table.elapsed > 60 ? "text-red-400" : table.elapsed > 30 ? "text-amber-400" : "text-emerald-400")}>{table.elapsed}m</p></div>}{table.status === "reserved" && <p className="mt-2 text-xs text-amber-400">Reserved tonight</p>}</button>))}</div>
-    </div>
-  );
-}
-
-function POSPage({ toast }) {
-  const [selectedCat, setSelectedCat] = useState("c1");
-  const [cart, setCart] = useState([]);
-  const addToCart = (item) => { setCart(prev => { const existing = prev.find(c => c.id === item.id); if (existing) return prev.map(c => c.id === item.id ? { ...c, qty: c.qty + 1 } : c); return [...prev, { ...item, qty: 1 }]; }); };
-  const removeFromCart = (id) => setCart(prev => prev.filter(c => c.id !== id));
-  const updateQty = (id, delta) => setCart(prev => prev.map(c => c.id === id ? { ...c, qty: Math.max(1, c.qty + delta) } : c));
-  const subtotal = cart.reduce((s, c) => s + c.price * c.qty, 0);
-  const tax = subtotal * 0.19;
-  const total = subtotal + tax;
-  const menuItems = DEMO_MENU.filter(m => m.category === selectedCat && m.available);
-  return (
-    <div className="flex h-[calc(100vh-8rem)] gap-4">
-      <div className="flex flex-1 flex-col">
-        <div className="mb-4 flex gap-2 overflow-x-auto pb-1">{DEMO_CATEGORIES.map(cat => (<button key={cat.id} onClick={() => setSelectedCat(cat.id)} className={cn("shrink-0 rounded-xl px-4 py-3 text-sm font-semibold transition-all", selectedCat === cat.id ? "bg-amber-500 text-black shadow-lg shadow-amber-500/20" : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700")}>{cat.icon} {cat.name}</button>))}</div>
-        <div className="grid flex-1 gap-3 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 content-start pr-1">{menuItems.map(item => (<button key={item.id} onClick={() => { addToCart(item); toast.add(`Added ${item.name}`, "success"); }} className="group rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-4 text-left hover:border-amber-500/30 hover:bg-zinc-800/70 active:scale-[0.97] transition-all"><h3 className="text-sm font-bold text-zinc-200 group-hover:text-amber-400 transition-colors">{item.name}</h3><div className="mt-1 flex items-center justify-between"><span className="text-lg font-black text-amber-400">{fmt(item.price)}</span><Badge className="text-[10px]"><Clock size={10} /> {item.prepTime}m</Badge></div></button>))}</div>
-      </div>
-      <div className="flex w-80 flex-col rounded-xl border border-zinc-800/80 bg-zinc-900/70">
-        <div className="border-b border-zinc-800 p-4"><label className="mb-1 block text-xs font-medium text-zinc-500">Table</label><select className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-zinc-200"><option value="">Select table...</option>{DEMO_TABLES.filter(t => t.status === "available").map(t => (<option key={t.id} value={t.id}>Table {t.number} ({t.capacity} seats)</option>))}</select></div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">{cart.length === 0 ? (<div className="flex flex-col items-center justify-center py-12 text-center"><ShoppingBag size={32} className="text-zinc-600 mb-2" /><p className="text-sm text-zinc-500">Cart is empty</p></div>) : cart.map(item => (<div key={item.id} className="flex items-center gap-3 rounded-lg bg-zinc-800/50 p-2.5"><div className="flex-1 min-w-0"><p className="text-sm font-medium text-zinc-200 truncate">{item.name}</p><p className="text-xs text-zinc-500">{fmt(item.price)} each</p></div><div className="flex items-center gap-1.5"><button onClick={() => updateQty(item.id, -1)} className="rounded-md bg-zinc-700 px-2 py-0.5 text-xs text-zinc-300 hover:bg-zinc-600">−</button><span className="w-6 text-center text-sm font-bold text-zinc-200">{item.qty}</span><button onClick={() => updateQty(item.id, 1)} className="rounded-md bg-zinc-700 px-2 py-0.5 text-xs text-zinc-300 hover:bg-zinc-600">+</button></div><span className="w-16 text-right text-sm font-semibold text-zinc-200">{fmt(item.price * item.qty)}</span><button onClick={() => removeFromCart(item.id)} className="text-zinc-600 hover:text-red-400"><X size={14} /></button></div>))}</div>
-        <div className="border-t border-zinc-800 p-4 space-y-3"><div className="space-y-1.5"><div className="flex justify-between text-sm text-zinc-400"><span>Subtotal</span><span>{fmt(subtotal)}</span></div><div className="flex justify-between text-sm text-zinc-400"><span>Tax (19%)</span><span>{fmt(tax)}</span></div><div className="flex justify-between text-lg font-bold text-zinc-100 border-t border-zinc-700 pt-2"><span>Total</span><span>{fmt(total)}</span></div></div><button disabled={cart.length === 0} onClick={() => { toast.add("Order sent to kitchen!", "success"); setCart([]); }} className="w-full rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 py-3 text-sm font-bold text-white shadow-lg shadow-amber-500/20 disabled:opacity-40 disabled:shadow-none">Send to Kitchen ({cart.length})</button><div className="grid grid-cols-2 gap-2"><button className="rounded-lg border border-zinc-700 bg-zinc-800 py-2 text-xs font-medium text-zinc-400 hover:bg-zinc-700"><CreditCard size={13} className="inline mr-1" />Card</button><button className="rounded-lg border border-zinc-700 bg-zinc-800 py-2 text-xs font-medium text-zinc-400 hover:bg-zinc-700"><Banknote size={13} className="inline mr-1" />Cash</button></div></div>
-      </div>
-    </div>
-  );
-}
-
-function InventoryPage({ toast }) {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between"><div><h1 className="text-2xl font-bold text-zinc-100">Inventory</h1><p className="text-sm text-zinc-500">{DEMO_INVENTORY.length} items · {DEMO_INVENTORY.filter(i => i.qty <= i.threshold).length} low stock</p></div><button className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-black hover:bg-amber-400"><Plus size={16} />Add Item</button></div>
-      {DEMO_INVENTORY.filter(i => i.qty <= i.threshold).length > 0 && <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4"><div className="flex items-center gap-2 mb-2"><AlertTriangle size={14} className="text-red-400" /><span className="text-sm font-semibold text-red-300">Low Stock Alert</span></div><div className="flex flex-wrap gap-2">{DEMO_INVENTORY.filter(i => i.qty <= i.threshold).map(item => (<Badge key={item.id} variant="danger">{item.name}: {item.qty}{item.unit}</Badge>))}</div></div>}
-      <div className="overflow-x-auto rounded-xl border border-zinc-800/80"><table className="w-full text-sm"><thead><tr className="border-b border-zinc-800 bg-zinc-900/80"><th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500">Item</th><th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500">Category</th><th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500">Quantity</th><th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500">Status</th><th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500">Cost/Unit</th><th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500">Supplier</th></tr></thead>
-        <tbody className="divide-y divide-zinc-800/60">{DEMO_INVENTORY.map(item => { const pct = Math.min(100, (item.qty / item.par) * 100); const isLow = item.qty <= item.threshold; return (<tr key={item.id} className={cn("bg-zinc-900/40 hover:bg-zinc-800/40", isLow && "bg-red-500/5")}><td className="px-4 py-3 font-medium text-zinc-200">{item.name}</td><td className="px-4 py-3"><Badge>{item.category}</Badge></td><td className="px-4 py-3"><div className="flex items-center gap-2"><span className={cn("font-semibold", isLow ? "text-red-400" : "text-zinc-200")}>{item.qty} {item.unit}</span><div className="h-1.5 w-16 rounded-full bg-zinc-800"><div className={cn("h-full rounded-full", isLow ? "bg-red-500" : pct > 60 ? "bg-emerald-500" : "bg-amber-500")} style={{ width: `${pct}%` }} /></div></div></td><td className="px-4 py-3">{isLow ? <Badge variant="danger"><AlertTriangle size={10} /> Low</Badge> : <Badge variant="success"><Check size={10} /> OK</Badge>}</td><td className="px-4 py-3 text-zinc-400">{fmt(item.cost)}/{item.unit}</td><td className="px-4 py-3 text-zinc-400">{item.supplier}</td></tr>); })}</tbody></table></div>
-    </div>
-  );
-}
-
-function StaffPage() {
-  const roleColor = (r) => ({ owner: "brand", manager: "info", chef: "purple", waiter: "success", cashier: "warning", host: "default" }[r]);
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between"><div><h1 className="text-2xl font-bold text-zinc-100">Staff</h1><p className="text-sm text-zinc-500">{DEMO_STAFF.filter(s => s.isActive).length} active</p></div><button className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-black hover:bg-amber-400"><Plus size={16} />Add Staff</button></div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{DEMO_STAFF.map(staff => (<div key={staff.id} className={cn("rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-5 hover:border-zinc-700 transition-all", !staff.isActive && "opacity-50")}><div className="flex items-center gap-3 mb-3"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-amber-500/20 to-orange-600/20 text-sm font-bold text-amber-400">{staff.avatar}</div><div><p className="font-semibold text-zinc-200">{staff.name}</p><Badge variant={roleColor(staff.role)} className="capitalize">{staff.role}</Badge></div></div><div className="space-y-1.5 text-xs text-zinc-500"><p className="inline-flex items-center gap-1.5"><Mail size={11} />{staff.email}</p>{staff.hourlyRate > 0 && <p className="inline-flex items-center gap-1.5"><DollarSign size={11} />€{staff.hourlyRate}/hr</p>}<p className="inline-flex items-center gap-1.5">{staff.isActive ? <Wifi size={11} className="text-emerald-400" /> : <WifiOff size={11} />}{staff.isActive ? "Active" : "Inactive"}</p></div></div>))}</div>
-    </div>
-  );
-}
-
-function AnalyticsPage() {
-  const [period, setPeriod] = useState("week");
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between"><div><h1 className="text-2xl font-bold text-zinc-100">Analytics</h1><p className="text-sm text-zinc-500">Sales, performance & insights</p></div><div className="flex gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900 p-1">{["today", "week", "month"].map(p => (<button key={p} onClick={() => setPeriod(p)} className={cn("rounded-md px-3 py-1.5 text-xs font-medium capitalize", period === p ? "bg-amber-500 text-black" : "text-zinc-400 hover:text-zinc-200")}>{p}</button>))}</div></div>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KPICard title="Total Revenue" value="€27,730" change="+18.2%" changeLabel="vs last week" icon={DollarSign} trend="up" />
-        <KPICard title="Total Orders" value="418" change="+12%" changeLabel="vs last week" icon={ShoppingBag} trend="up" />
-        <KPICard title="Avg Order Value" value="€66.34" change="+€4.20" changeLabel="vs last week" icon={Target} trend="up" />
-        <KPICard title="Food Cost %" value="31.2%" change="-1.8%" changeLabel="vs last week" icon={TrendingDown} trend="up" />
-      </div>
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-5"><h2 className="mb-4 text-sm font-semibold text-zinc-300">Revenue & Tips</h2><ResponsiveContainer width="100%" height={250}><ReBarChart data={REVENUE_DATA}><CartesianGrid strokeDasharray="3 3" stroke="#27272a" /><XAxis dataKey="day" stroke="#52525b" fontSize={12} /><YAxis stroke="#52525b" fontSize={12} tickFormatter={v => `€${v}`} /><Tooltip contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: "8px", fontSize: "12px" }} /><Legend wrapperStyle={{ fontSize: "11px" }} /><Bar dataKey="revenue" fill="#F59E0B" name="Revenue" radius={[4, 4, 0, 0]} /><Bar dataKey="tips" fill="#10B981" name="Tips" radius={[4, 4, 0, 0]} /></ReBarChart></ResponsiveContainer></div>
-        <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-5"><h2 className="mb-4 text-sm font-semibold text-zinc-300">Hourly Orders</h2><ResponsiveContainer width="100%" height={250}><AreaChart data={HOURLY_DATA}><defs><linearGradient id="hg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3} /><stop offset="95%" stopColor="#3B82F6" stopOpacity={0} /></linearGradient></defs><CartesianGrid strokeDasharray="3 3" stroke="#27272a" /><XAxis dataKey="hour" stroke="#52525b" fontSize={11} /><YAxis stroke="#52525b" fontSize={12} /><Tooltip contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: "8px", fontSize: "12px" }} /><Area type="monotone" dataKey="orders" stroke="#3B82F6" fill="url(#hg)" strokeWidth={2} /></AreaChart></ResponsiveContainer></div>
-        <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-5"><h2 className="mb-4 text-sm font-semibold text-zinc-300">Top Items by Revenue</h2><ResponsiveContainer width="100%" height={250}><ReBarChart data={POPULAR_ITEMS_DATA.sort((a, b) => b.revenue - a.revenue).slice(0, 6)} layout="vertical"><CartesianGrid strokeDasharray="3 3" stroke="#27272a" /><XAxis type="number" stroke="#52525b" fontSize={11} tickFormatter={v => `€${v}`} /><YAxis type="category" dataKey="name" stroke="#52525b" fontSize={11} width={80} /><Tooltip contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: "8px", fontSize: "12px" }} /><Bar dataKey="revenue" fill="#8B5CF6" radius={[0, 4, 4, 0]} /></ReBarChart></ResponsiveContainer></div>
-        <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-5"><h2 className="mb-4 text-sm font-semibold text-zinc-300">Server Performance</h2><div className="space-y-3">{[{ name: "Sophie Weber", orders: 42, revenue: 2840, tips: 380, avg: 67.62 }, { name: "Mia Hoffmann", orders: 38, revenue: 2520, tips: 340, avg: 66.32 }, { name: "Felix Müller", orders: 28, revenue: 1680, tips: 210, avg: 60.00 }].map((s, i) => (<div key={i} className="flex items-center gap-3 rounded-lg bg-zinc-800/40 p-3"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/15 text-xs font-bold text-amber-400">#{i + 1}</div><div className="flex-1"><p className="text-sm font-medium text-zinc-200">{s.name}</p><p className="text-xs text-zinc-500">{s.orders} orders · Avg {fmt(s.avg)}</p></div><div className="text-right"><p className="text-sm font-bold text-zinc-200">{fmt(s.revenue)}</p><p className="text-xs text-emerald-400">+{fmt(s.tips)} tips</p></div></div>))}</div></div>
-      </div>
-    </div>
-  );
-}
-
-function ReservationsPage({ toast }) {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between"><div><h1 className="text-2xl font-bold text-zinc-100">Reservations</h1><p className="text-sm text-zinc-500">{DEMO_RESERVATIONS.filter(r => r.date === "Today").length} today · {DEMO_RESERVATIONS.filter(r => r.date === "Tomorrow").length} tomorrow</p></div><button className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-black hover:bg-amber-400"><Plus size={16} />New Reservation</button></div>
-      {["Today", "Tomorrow"].map(day => (<div key={day}><h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">{day}</h2><div className="space-y-2">{DEMO_RESERVATIONS.filter(r => r.date === day).map(res => (<div key={res.id} className="flex items-center justify-between rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-4 hover:border-zinc-700 transition-all"><div className="flex items-center gap-4"><div className="flex h-12 w-12 flex-col items-center justify-center rounded-lg bg-amber-500/10"><span className="text-lg font-black text-amber-400">{res.time.split(":")[0]}</span><span className="text-[10px] text-amber-400/70">:{res.time.split(":")[1]}</span></div><div><p className="font-semibold text-zinc-200">{res.name}</p><div className="mt-0.5 flex items-center gap-3 text-xs text-zinc-500"><span className="inline-flex items-center gap-1"><Users size={11} />{res.partySize}</span><span className="inline-flex items-center gap-1"><Armchair size={11} />T{res.table}</span></div>{res.notes && <p className="mt-1 text-xs text-amber-400/70">{res.notes}</p>}</div></div><div className="flex items-center gap-2"><Badge variant="success">Confirmed</Badge><button onClick={() => toast.add(`${res.name} seated!`)} className="rounded-lg bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-emerald-600 hover:text-white transition-colors">Seat</button></div></div>))}</div></div>))}
-    </div>
-  );
-}
-
-function CustomersPage() {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between"><div><h1 className="text-2xl font-bold text-zinc-100">Customers</h1><p className="text-sm text-zinc-500">{DEMO_CUSTOMERS.length} profiles</p></div><button className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-black hover:bg-amber-400"><Plus size={16} />Add Customer</button></div>
-      <div className="space-y-3">{DEMO_CUSTOMERS.map(cust => (<div key={cust.id} className="flex items-center justify-between rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-4 hover:border-zinc-700 transition-all"><div className="flex items-center gap-4"><div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-amber-500/20 to-orange-600/20 text-sm font-bold text-amber-400">{cust.name.split(" ").map(w => w[0]).join("").slice(0, 2)}</div><div><div className="flex items-center gap-2"><p className="font-semibold text-zinc-200">{cust.name}</p>{cust.tags.map(t => <Badge key={t} variant={t === "VIP" ? "brand" : "default"} className="text-[10px]">{t}</Badge>)}</div><div className="mt-0.5 flex items-center gap-3 text-xs text-zinc-500">{cust.email && <span className="inline-flex items-center gap-1"><Mail size={11} />{cust.email}</span>}{cust.phone && <span className="inline-flex items-center gap-1"><Phone size={11} />{cust.phone}</span>}</div>{cust.notes && <p className="mt-1 text-xs text-zinc-400">{cust.notes}</p>}</div></div><div className="text-right space-y-1"><p className="text-sm font-bold text-zinc-200">{fmt(cust.totalSpent)}</p><p className="text-xs text-zinc-500">{cust.visits} visits</p><Badge variant="brand" className="text-[10px]"><Star size={10} /> {cust.points} pts</Badge></div></div>))}</div>
-    </div>
-  );
-}
-
-function SettingsPage({ toast }) {
-  return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-zinc-100">Settings</h1>
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-5"><div className="mb-4 flex items-center gap-2"><Store size={18} className="text-amber-400" /><h2 className="text-sm font-semibold text-zinc-300">Restaurant Details</h2></div><div className="space-y-3">{[{ l: "Name", v: "Bella Cucina" }, { l: "Address", v: "47 Maximilianstraße, Munich" }, { l: "Phone", v: "+49 89 1234567" }, { l: "Currency", v: "EUR" }, { l: "Tax Rate", v: "19%" }, { l: "Timezone", v: "Europe/Berlin" }].map(f => (<div key={f.l} className="flex items-center justify-between"><span className="text-sm text-zinc-500">{f.l}</span><span className="text-sm font-medium text-zinc-200">{f.v}</span></div>))}</div><button onClick={() => toast.add("Settings saved!")} className="mt-4 w-full rounded-lg bg-amber-500 py-2 text-sm font-semibold text-black hover:bg-amber-400">Save Changes</button></div>
-        <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-5"><div className="mb-4 flex items-center gap-2"><ShieldCheck size={18} className="text-amber-400" /><h2 className="text-sm font-semibold text-zinc-300">Security</h2></div><div className="space-y-3">{[{ l: "Two-Factor Auth (TOTP)", d: "Required for Owner & Manager" }, { l: "Row Level Security", d: "Tenant data isolation" }, { l: "Rate Limiting", d: "5 login attempts / 15min" }, { l: "CSP Headers", d: "Nonce-based Content Security Policy" }, { l: "HSTS", d: "Strict Transport Security" }, { l: "Audit Logging", d: "Immutable action trails" }].map(item => (<div key={item.l} className="flex items-center justify-between rounded-lg bg-zinc-800/40 p-3"><div><p className="text-sm font-medium text-zinc-200">{item.l}</p><p className="text-xs text-zinc-500">{item.d}</p></div><Badge variant="success"><Lock size={10} /> Enabled</Badge></div>))}</div></div>
-        <div className="lg:col-span-2 rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-5"><div className="mb-4 flex items-center gap-2"><UserCog size={18} className="text-amber-400" /><h2 className="text-sm font-semibold text-zinc-300">Role Permissions</h2></div><div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="border-b border-zinc-800"><th className="px-3 py-2 text-left text-zinc-500">Permission</th>{["Owner", "Manager", "Chef", "Waiter", "Cashier", "Host"].map(r => (<th key={r} className="px-3 py-2 text-center text-zinc-500">{r}</th>))}</tr></thead><tbody className="divide-y divide-zinc-800/40">{[{ p: "Restaurant Settings", r: [1, 0, 0, 0, 0, 0] }, { p: "Manage Staff", r: [1, 1, 0, 0, 0, 0] }, { p: "Manage Menu", r: [1, 1, 1, 0, 0, 0] }, { p: "Create Orders", r: [1, 1, 0, 1, 1, 0] }, { p: "View All Orders", r: [1, 1, 1, 0, 0, 0] }, { p: "Void Orders", r: [1, 1, 0, 0, 0, 0] }, { p: "Process Payments", r: [1, 1, 0, 0, 1, 0] }, { p: "View Reports", r: [1, 1, 0, 0, 0, 0] }, { p: "Manage Tables", r: [1, 1, 0, 1, 0, 1] }, { p: "Manage Reservations", r: [1, 1, 0, 0, 0, 1] }, { p: "Manage Inventory", r: [1, 1, 1, 0, 0, 0] }].map(row => (<tr key={row.p}><td className="px-3 py-2 text-zinc-400">{row.p}</td>{row.r.map((v, i) => (<td key={i} className="px-3 py-2 text-center">{v ? <Check size={14} className="mx-auto text-emerald-400" /> : <X size={14} className="mx-auto text-zinc-700" />}</td>))}</tr>))}</tbody></table></div></div>
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
-// MAIN APPLICATION — Sidebar + Router + Top Bar
-// ═══════════════════════════════════════════════════════════════
-
-const NAV_ITEMS = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "orders", label: "Orders", icon: ShoppingBag, badge: 5 },
-  { id: "kitchen", label: "Kitchen", icon: ChefHat, badge: 3 },
-  { id: "pos", label: "POS", icon: CreditCard },
-  { id: "menu", label: "Menu", icon: UtensilsCrossed },
-  { id: "tables", label: "Tables", icon: Armchair },
-  { id: "reservations", label: "Reservations", icon: CalendarClock, badge: 2 },
-  { id: "inventory", label: "Inventory", icon: Package },
-  { id: "staff", label: "Staff", icon: Users },
-  { id: "analytics", label: "Analytics", icon: BarChart3 },
-  { id: "customers", label: "Customers", icon: Heart },
-  { id: "settings", label: "Settings", icon: Settings },
-];
-
-export default function RestaurantApp() {
-  const [isAuth, setIsAuth] = useState(false);
-  const [page, setPage] = useState("dashboard");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [time, setTime] = useState(new Date());
-  const toast = useToast();
-
-  useEffect(() => { const t = setInterval(() => setTime(new Date()), 30000); return () => clearInterval(t); }, []);
-
-  if (!isAuth) return <AuthScreen onLogin={() => setIsAuth(true)} />;
-
-  const renderPage = () => {
-    switch (page) {
-      case "dashboard": return <DashboardPage toast={toast} />;
-      case "orders": return <OrdersPage toast={toast} />;
-      case "kitchen": return <KitchenPage toast={toast} />;
-      case "pos": return <POSPage toast={toast} />;
-      case "menu": return <MenuPage toast={toast} />;
-      case "tables": return <TablesPage toast={toast} />;
-      case "reservations": return <ReservationsPage toast={toast} />;
-      case "inventory": return <InventoryPage toast={toast} />;
-      case "staff": return <StaffPage />;
-      case "analytics": return <AnalyticsPage />;
-      case "customers": return <CustomersPage />;
-      case "settings": return <SettingsPage toast={toast} />;
-      default: return <DashboardPage toast={toast} />;
-    }
+    </div>);
   };
 
-  return (
-    <div className="flex h-screen bg-zinc-950 text-zinc-100 overflow-hidden">
-      {/* Sidebar */}
-      <aside className={cn("flex flex-col border-r border-zinc-800/80 bg-zinc-950 transition-all duration-300 shrink-0", sidebarOpen ? "w-60" : "w-16")}>
-        <div className="flex h-16 items-center gap-3 border-b border-zinc-800/80 px-4">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 shadow-md shadow-amber-500/15"><UtensilsCrossed size={18} className="text-white" /></div>
-          {sidebarOpen && <div className="min-w-0"><p className="text-sm font-bold text-zinc-100 truncate" style={{ fontFamily: "'Georgia', serif" }}>Bella Cucina</p><p className="text-[10px] text-zinc-500">Restaurant Management</p></div>}
-        </div>
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-          {NAV_ITEMS.map(item => { const Icon = item.icon; const active = page === item.id; return (
-            <button key={item.id} onClick={() => setPage(item.id)} className={cn("flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all", active ? "bg-amber-500/10 text-amber-400" : "text-zinc-500 hover:bg-zinc-800/60 hover:text-zinc-300", !sidebarOpen && "justify-center px-0")}>
-              <Icon size={18} className={cn(active && "text-amber-400")} />
-              {sidebarOpen && <><span className="flex-1 text-left">{item.label}</span>{item.badge && <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-500/15 px-1.5 text-[10px] font-bold text-amber-400">{item.badge}</span>}</>}
-            </button>
-          ); })}
-        </nav>
-        <div className="border-t border-zinc-800/80 p-3"><button onClick={() => setSidebarOpen(!sidebarOpen)} className="flex w-full items-center justify-center gap-2 rounded-lg py-2 text-xs text-zinc-600 hover:bg-zinc-800/60 hover:text-zinc-400">{sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}{sidebarOpen && <span>Collapse</span>}</button></div>
-      </aside>
+  // ═══════════════════════════════════════════════════════════
+  // PAGE: POS (creates real orders!)
+  // ═══════════════════════════════════════════════════════════
+  const POS=()=>{
+    const[cat,setCat]=useState("c1");
+    const[cart,setCart]=useState([]);
+    const[selTable,setSelTable]=useState("");
+    const[orderType,setOrderType]=useState("dine_in");
+    const[custName,setCustName]=useState("");
 
-      {/* Main Content */}
+    const addToCart=(item)=>{setCart(p=>{const ex=p.find(c=>c.id===item.id);return ex?p.map(c=>c.id===item.id?{...c,qty:c.qty+1}:c):[...p,{...item,qty:1,notes:""}]});toast.add(`${item.name} added`)};
+    const sub=cart.reduce((s,c)=>s+c.price*c.qty,0);
+    const tax=+(sub*0.19).toFixed(2);
+    const total=+(sub+tax).toFixed(2);
+    const available=menu.filter(m=>m.catId===cat&&m.available);
+    const freeTables=tables.filter(t=>t.status==="available");
+
+    const sendToKitchen=()=>{
+      if(cart.length===0)return;
+      if(orderType==="dine_in"&&!selTable){toast.add("Select a table first","error");return}
+      createOrder(orderType==="dine_in"?selTable:null,cart,orderType,custName);
+      setCart([]);setSelTable("");setCustName("");
+    };
+
+    return(<div className="flex h-[calc(100vh-8rem)] gap-4">
       <div className="flex flex-1 flex-col min-w-0">
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-800/80 bg-zinc-950/80 px-6 backdrop-blur-sm">
-          <div className="flex items-center gap-3"><div className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-1.5"><Search size={14} className="text-zinc-500" /><span className="text-xs text-zinc-500">Search... ⌘K</span></div></div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-zinc-500 font-mono">{time.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</span>
-            <button className="relative rounded-lg p-2 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"><Bell size={18} /><span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-amber-500 animate-pulse" /></button>
-            <div className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-1.5"><div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-600 text-[10px] font-bold text-white">MR</div><div className="hidden sm:block"><p className="text-xs font-medium text-zinc-300">Marco Rossi</p><p className="text-[10px] text-zinc-500">Owner</p></div></div>
-            <button onClick={() => setIsAuth(false)} className="rounded-lg p-2 text-zinc-600 hover:bg-zinc-800 hover:text-red-400"><LogOut size={16} /></button>
-          </div>
-        </header>
-        <main className="flex-1 overflow-y-auto p-6">{renderPage()}</main>
+        <div className="mb-3 flex gap-2 overflow-x-auto pb-1 shrink-0">{categories.map(c=><button key={c.id} onClick={()=>setCat(c.id)} className={cn("shrink-0 rounded-xl px-4 py-3 text-sm font-semibold transition-all",cat===c.id?"bg-amber-500 text-black shadow-lg shadow-amber-500/20":"bg-zinc-800 text-zinc-400 hover:bg-zinc-700")}>{c.icon} {c.name}</button>)}</div>
+        <div className="grid flex-1 gap-3 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 content-start pr-1">
+          {available.map(item=><button key={item.id} onClick={()=>addToCart(item)} className="group rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-4 text-left hover:border-amber-500/30 hover:bg-zinc-800/70 active:scale-[0.97] transition-all"><h3 className="text-sm font-bold text-zinc-200 group-hover:text-amber-400">{item.name}</h3><p className="text-xs text-zinc-500 mt-0.5">{item.station} · {item.prepTime}m</p><span className="text-lg font-black text-amber-400 mt-1 block">{fmt(item.price)}</span></button>)}
+          {available.length===0&&<p className="col-span-full text-center text-sm text-zinc-500 py-12">No available items in this category</p>}
+        </div>
       </div>
-      <ToastContainer toasts={toast.toasts} />
+      <div className="flex w-80 shrink-0 flex-col rounded-xl border border-zinc-800/80 bg-zinc-900/70">
+        <div className="border-b border-zinc-800 p-4 space-y-3">
+          <div className="flex gap-2">{["dine_in","takeout"].map(t=><button key={t} onClick={()=>setOrderType(t)} className={cn("flex-1 rounded-lg py-2 text-xs font-semibold transition-colors capitalize",orderType===t?"bg-amber-500 text-black":"bg-zinc-800 text-zinc-400")}>{t.replace("_"," ")}</button>)}</div>
+          {orderType==="dine_in"?<Select label="Table" value={selTable} onChange={e=>setSelTable(e.target.value)}><option value="">Select table...</option>{freeTables.map(t=><option key={t.id} value={t.id}>Table {t.number} ({t.capacity} seats)</option>)}</Select>
+          :<Input label="Customer Name" placeholder="Name for order" value={custName} onChange={e=>setCustName(e.target.value)}/>}
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          {cart.length===0?<div className="flex flex-col items-center py-12 text-center"><ShoppingBag size={32} className="text-zinc-600 mb-2"/><p className="text-sm text-zinc-500">Tap items to add</p></div>:
+          cart.map(item=><div key={item.id} className="flex items-center gap-2 rounded-lg bg-zinc-800/50 p-2.5">
+            <div className="flex-1 min-w-0"><p className="text-sm font-medium text-zinc-200 truncate">{item.name}</p><input className="mt-1 w-full rounded bg-zinc-700/50 px-2 py-0.5 text-[11px] text-zinc-400 outline-none placeholder:text-zinc-600" placeholder="Special notes..." value={item.notes} onChange={e=>setCart(p=>p.map(c=>c.id===item.id?{...c,notes:e.target.value}:c))}/></div>
+            <div className="flex items-center gap-1"><button onClick={()=>setCart(p=>p.map(c=>c.id===item.id?{...c,qty:Math.max(1,c.qty-1)}:c))} className="rounded bg-zinc-700 px-2 py-0.5 text-xs text-zinc-300 hover:bg-zinc-600">−</button><span className="w-6 text-center text-sm font-bold text-zinc-200">{item.qty}</span><button onClick={()=>setCart(p=>p.map(c=>c.id===item.id?{...c,qty:c.qty+1}:c))} className="rounded bg-zinc-700 px-2 py-0.5 text-xs text-zinc-300 hover:bg-zinc-600">+</button></div>
+            <span className="w-14 text-right text-sm font-semibold text-zinc-200">{fmt(item.price*item.qty)}</span>
+            <button onClick={()=>setCart(p=>p.filter(c=>c.id!==item.id))} className="text-zinc-600 hover:text-red-400"><X size={14}/></button>
+          </div>)}
+        </div>
+        <div className="border-t border-zinc-800 p-4 space-y-3">
+          <div className="space-y-1"><div className="flex justify-between text-sm text-zinc-400"><span>Subtotal</span><span>{fmt(sub)}</span></div><div className="flex justify-between text-sm text-zinc-400"><span>Tax 19%</span><span>{fmt(tax)}</span></div><div className="flex justify-between text-lg font-bold text-zinc-100 border-t border-zinc-700 pt-2"><span>Total</span><span>{fmt(total)}</span></div></div>
+          <Btn className="w-full" onClick={sendToKitchen} disabled={cart.length===0}>Send to Kitchen ({cart.length} items)</Btn>
+          <div className="grid grid-cols-2 gap-2"><Btn variant="secondary" className="text-xs py-2"><CreditCard size={13} className="inline mr-1"/>Card</Btn><Btn variant="secondary" className="text-xs py-2"><Banknote size={13} className="inline mr-1"/>Cash</Btn></div>
+        </div>
+      </div>
+    </div>);
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // PAGE: KITCHEN DISPLAY
+  // ═══════════════════════════════════════════════════════════
+  const Kitchen=()=>{
+    const[station,setStation]=useState("all");
+    const kitchenOrders=orders.filter(o=>["confirmed","preparing","ready"].includes(o.status)).map(o=>({...o,items:station==="all"?o.items.filter(i=>i.status!=="served"):o.items.filter(i=>i.station===station&&i.status!=="served")})).filter(o=>o.items.length>0);
+    return(<div className="space-y-4">
+      <div className="flex items-center justify-between"><h1 className="text-2xl font-bold text-zinc-100">Kitchen Display</h1><Badge variant="success"><CircleDot size={8} className="animate-pulse"/>Live</Badge></div>
+      <div className="flex gap-2">{["all","grill","pasta","pizza","salad","bar"].map(s=><button key={s} onClick={()=>setStation(s)} className={cn("rounded-lg px-4 py-2 text-sm font-medium capitalize transition-colors",station===s?"bg-amber-500 text-black":"bg-zinc-800 text-zinc-400 hover:bg-zinc-700")}>{s}</button>)}</div>
+      {kitchenOrders.length===0?<div className="flex flex-col items-center py-20"><ChefHat size={48} className="text-zinc-600 mb-3"/><p className="text-xl font-semibold text-zinc-300">Kitchen is clear</p><p className="text-sm text-zinc-500 mt-1">New orders from POS will appear here instantly</p></div>:
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{kitchenOrders.map(order=>{
+        const mins=minsAgo(order.createdAt);const bg=mins>20?"border-red-500/40 bg-red-500/5":mins>12?"border-amber-500/40 bg-amber-500/5":"border-zinc-800/80 bg-zinc-900/70";
+        return(<div key={order.id} className={cn("rounded-xl border p-4",bg)}>
+          <div className="flex items-center justify-between mb-2"><div className="flex items-center gap-2"><span className="text-lg font-black text-zinc-100">#{order.number}</span></div><div className="text-right"><Badge>{order.tableNum!=="—"?`T${order.tableNum}`:order.type}</Badge><p className={cn("text-xs font-mono font-bold mt-0.5",mins>20?"text-red-400":mins>12?"text-amber-400":"text-emerald-400")}>{mins}m</p></div></div>
+          <p className="text-xs text-zinc-500 mb-2">{order.waiter}</p>
+          <div className="space-y-1.5">{order.items.map(item=>(
+            <div key={item.id} className={cn("flex items-center justify-between rounded-md px-2.5 py-2 text-sm",item.status==="ready"?"bg-emerald-500/10":item.status==="preparing"?"bg-blue-500/10":"bg-zinc-800/50")}>
+              <div className="flex-1"><span className={cn("font-medium",item.status==="ready"?"text-emerald-400 line-through":"text-zinc-200")}>{item.qty}× {item.name}</span>{item.notes&&<p className="text-[11px] font-semibold text-red-400">{item.notes}</p>}</div>
+              <button onClick={()=>{bumpItem(order.id,item.id);toast.add(`${item.name} → ${item.status==="pending"?"preparing":item.status==="preparing"?"ready":"served"}`)}} className={cn("rounded-md px-3 py-1 text-xs font-bold transition-all",item.status==="ready"?"bg-emerald-500/20 text-emerald-400":"bg-zinc-700 text-zinc-300 hover:bg-amber-500 hover:text-black")}>{item.status==="pending"?"FIRE":item.status==="preparing"?"READY":"✓"}</button>
+            </div>
+          ))}</div>
+          <button onClick={()=>bumpAllItems(order.id)} className="mt-3 w-full rounded-lg bg-emerald-600 py-2 text-xs font-bold uppercase text-white hover:bg-emerald-500">Bump All</button>
+        </div>);
+      })}</div>}
+    </div>);
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // PAGE: ORDERS
+  // ═══════════════════════════════════════════════════════════
+  const Orders=()=>{
+    const[filter,setFilter]=useState("all");
+    const[sel,setSel]=useState(null);
+    const filtered=filter==="all"?orders:orders.filter(o=>o.status===filter);
+    const nextStatus={confirmed:"preparing",preparing:"ready",ready:"served",served:"completed"};
+    return(<div className="space-y-6">
+      <div className="flex items-center justify-between"><div><h1 className="text-2xl font-bold text-zinc-100">Orders</h1><p className="text-sm text-zinc-500">{orders.length} total</p></div><Btn onClick={()=>setPage("pos")}><Plus size={16} className="inline mr-1"/>New Order</Btn></div>
+      <div className="flex flex-wrap gap-2">{["all","confirmed","preparing","ready","served","completed","cancelled"].map(f=><button key={f} onClick={()=>setFilter(f)} className={cn("rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors",filter===f?"bg-amber-500/15 text-amber-400 border border-amber-500/30":"bg-zinc-800/60 text-zinc-400 border border-zinc-800 hover:bg-zinc-800")}>{f==="all"?`All (${orders.length})`:f}</button>)}</div>
+      {filtered.length===0?<div className="text-center py-16"><ShoppingBag size={40} className="mx-auto text-zinc-600 mb-3"/><p className="text-zinc-400">No orders yet — create one from the POS</p></div>:
+      <div className="overflow-x-auto rounded-xl border border-zinc-800/80"><table className="w-full text-sm"><thead><tr className="border-b border-zinc-800 bg-zinc-900/80"><th className="px-4 py-3 text-left text-xs font-semibold uppercase text-zinc-500">Order</th><th className="px-4 py-3 text-left text-xs font-semibold uppercase text-zinc-500">Table</th><th className="px-4 py-3 text-left text-xs font-semibold uppercase text-zinc-500">Items</th><th className="px-4 py-3 text-left text-xs font-semibold uppercase text-zinc-500">Status</th><th className="px-4 py-3 text-left text-xs font-semibold uppercase text-zinc-500">Total</th><th className="px-4 py-3 text-left text-xs font-semibold uppercase text-zinc-500">Time</th><th className="px-4 py-3 text-right text-xs font-semibold uppercase text-zinc-500">Actions</th></tr></thead>
+        <tbody className="divide-y divide-zinc-800/60">{filtered.map(o=><tr key={o.id} className="bg-zinc-900/40 hover:bg-zinc-800/40 transition-colors"><td className="px-4 py-3"><span className="font-bold text-zinc-200">#{o.number}</span>{o.type!=="dine_in"&&<Badge variant="info" className="ml-2 text-[10px]">{o.type}</Badge>}</td><td className="px-4 py-3 text-zinc-400">{o.tableNum}</td><td className="px-4 py-3 text-zinc-400">{o.items.length}</td><td className="px-4 py-3"><StatusBadge status={o.status}/></td><td className="px-4 py-3 font-semibold text-zinc-200">{fmt(o.total)}</td><td className={cn("px-4 py-3 font-mono text-xs",urgency(o.createdAt))}>{fmtTime(o.createdAt)}</td>
+          <td className="px-4 py-3 text-right flex gap-1.5 justify-end">{nextStatus[o.status]&&<button onClick={()=>updateOrderStatus(o.id,nextStatus[o.status])} className="rounded-md bg-amber-500 px-3 py-1 text-xs font-semibold text-black hover:bg-amber-400">{nextStatus[o.status]==="completed"?"Complete":"→ "+nextStatus[o.status]}</button>}{!["completed","cancelled"].includes(o.status)&&<button onClick={()=>updateOrderStatus(o.id,"cancelled")} className="rounded-md bg-zinc-800 px-2 py-1 text-xs text-red-400 hover:bg-red-500/20"><X size={12}/></button>}</td></tr>)}</tbody></table></div>}
+    </div>);
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // PAGE: MENU
+  // ═══════════════════════════════════════════════════════════
+  const Menu=()=>{
+    const[cat,setCat]=useState("all");
+    const[modal,setModal]=useState(null);// null or item object (empty for new)
+    const items=cat==="all"?menu:menu.filter(m=>m.catId===cat);
+    const saveItem=(item)=>{if(item.id){setMenu(p=>p.map(m=>m.id===item.id?item:m));toast.add(`${item.name} updated`)}else{setMenu(p=>[{...item,id:uid()},...p]);toast.add(`${item.name} added`)}setModal(null)};
+    const deleteItem=(id)=>{setMenu(p=>p.filter(m=>m.id!==id));toast.add("Item deleted","info")};
+    return(<div className="space-y-6">
+      <div className="flex items-center justify-between"><div><h1 className="text-2xl font-bold text-zinc-100">Menu</h1><p className="text-sm text-zinc-500">{menu.length} items</p></div><Btn onClick={()=>setModal({id:null,name:"",catId:"c1",price:0,cost:0,available:true,prepTime:15,calories:0,allergens:[],station:"salad"})}><Plus size={16} className="inline mr-1"/>Add Item</Btn></div>
+      <div className="flex gap-2 overflow-x-auto pb-1"><button onClick={()=>setCat("all")} className={cn("shrink-0 rounded-xl px-4 py-2.5 text-sm font-medium",cat==="all"?"bg-amber-500/15 text-amber-400 border border-amber-500/30":"bg-zinc-800/60 text-zinc-400 border border-zinc-800")}>All</button>{categories.map(c=><button key={c.id} onClick={()=>setCat(c.id)} className={cn("shrink-0 rounded-xl px-4 py-2.5 text-sm font-medium",cat===c.id?"bg-amber-500/15 text-amber-400 border border-amber-500/30":"bg-zinc-800/60 text-zinc-400 border border-zinc-800")}>{c.icon} {c.name}</button>)}</div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{items.map(item=>{const c=categories.find(x=>x.id===item.catId);const margin=item.cost?Math.round((1-item.cost/item.price)*100):null;return(
+        <div key={item.id} className={cn("group rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-4 hover:border-zinc-700 transition-all",!item.available&&"opacity-50")}>
+          <div className="flex items-center justify-between mb-2"><Badge variant={item.available?"success":"danger"}>{item.available?"Available":"86'd"}</Badge><span className="text-lg">{c?.icon}</span></div>
+          <h3 className="text-sm font-bold text-zinc-200">{item.name}</h3>
+          <div className="mt-1.5 flex items-baseline gap-2"><span className="text-xl font-black text-amber-400">{fmt(item.price)}</span>{item.cost>0&&<span className="text-xs text-zinc-500">Cost {fmt(item.cost)}</span>}</div>
+          {margin&&<div className="mt-2 flex items-center gap-2"><div className="h-1.5 flex-1 rounded-full bg-zinc-800"><div className="h-full rounded-full bg-emerald-500" style={{width:`${margin}%`}}/></div><span className="text-xs text-zinc-500">{margin}%</span></div>}
+          <div className="mt-2 flex flex-wrap gap-1"><Badge className="text-[10px]"><Clock size={10}/>{item.prepTime}m</Badge><Badge className="text-[10px]">{item.station}</Badge></div>
+          {item.allergens?.length>0&&<div className="mt-1.5 flex flex-wrap gap-1">{item.allergens.map(a=><Badge key={a} variant="warning" className="text-[10px]">{a}</Badge>)}</div>}
+          <div className="mt-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={()=>setModal({...item})} className="flex-1 rounded-md bg-zinc-800 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700"><Edit size={12} className="inline mr-1"/>Edit</button><button onClick={()=>setMenu(p=>p.map(m=>m.id===item.id?{...m,available:!m.available}:m))} className="rounded-md bg-zinc-800 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700">{item.available?<EyeOff size={12}/>:<Eye size={12}/>}</button><button onClick={()=>deleteItem(item.id)} className="rounded-md bg-zinc-800 px-2 py-1.5 text-xs text-red-400 hover:bg-red-500/20"><Trash2 size={12}/></button></div>
+        </div>)})}</div>
+
+      <Modal open={!!modal} onClose={()=>setModal(null)} title={modal?.id?"Edit Menu Item":"Add Menu Item"} wide>
+        {modal&&<MenuForm item={modal} categories={categories} onSave={saveItem} onCancel={()=>setModal(null)}/>}
+      </Modal>
+    </div>);
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // PAGE: TABLES
+  // ═══════════════════════════════════════════════════════════
+  const Tables=()=>{
+    const[sec,setSec]=useState("all");
+    const shown=sec==="all"?tables:tables.filter(t=>t.section===sec);
+    const sections=[...new Set(tables.map(t=>t.section))];
+    const sdot={available:"bg-emerald-500",occupied:"bg-red-500",reserved:"bg-amber-500",cleaning:"bg-zinc-500"};
+    const sbg={available:"border-emerald-500/50 bg-emerald-500/10",occupied:"border-red-500/50 bg-red-500/10",reserved:"border-amber-500/50 bg-amber-500/10",cleaning:"border-zinc-500/50 bg-zinc-500/10"};
+    return(<div className="space-y-6">
+      <h1 className="text-2xl font-bold text-zinc-100">Tables</h1>
+      <div className="flex flex-wrap items-center gap-3">{Object.keys(sdot).map(s=><span key={s} className="inline-flex items-center gap-1.5 text-xs text-zinc-400 capitalize"><span className={cn("h-2.5 w-2.5 rounded-full",sdot[s])}/>{s}</span>)}<div className="mx-2 h-4 w-px bg-zinc-700"/>{["all",...sections].map(s=><button key={s} onClick={()=>setSec(s)} className={cn("rounded-lg px-3 py-1.5 text-xs font-medium capitalize",sec===s?"bg-amber-500/15 text-amber-400":"text-zinc-500 hover:text-zinc-300")}>{s}</button>)}</div>
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">{shown.map(t=>{
+        const tOrder=orders.find(o=>o.id===t.orderId);
+        return(<div key={t.id} className={cn("rounded-xl border p-4 transition-all hover:scale-[1.02]",sbg[t.status]||sbg.available)}>
+          <div className="flex items-center justify-between"><span className="text-lg font-black text-zinc-200">T{t.number}</span><span className={cn("h-2.5 w-2.5 rounded-full",sdot[t.status]||sdot.available)}/></div>
+          <p className="text-xs text-zinc-500 mt-1"><Users size={11} className="inline mr-1"/>{t.status==="occupied"?`${t.guests}/${t.capacity}`:t.capacity} seats · {t.section}</p>
+          {t.status==="occupied"&&<div className="mt-2"><p className="text-xs text-zinc-400">{t.server}</p>{t.seatedAt&&<p className={cn("text-xs font-mono",urgency(t.seatedAt))}>{fmtTime(t.seatedAt)}</p>}{tOrder&&<p className="text-xs text-zinc-500 mt-0.5">Order #{tOrder.number} · {fmt(tOrder.total)}</p>}</div>}
+          {t.status==="cleaning"&&<p className="text-xs text-zinc-500 mt-2">Auto-clears soon...</p>}
+          {t.status==="available"&&<button onClick={()=>{setPage("pos")}} className="mt-2 w-full rounded-md bg-zinc-800 py-1.5 text-xs text-zinc-300 hover:bg-amber-500 hover:text-black">Seat Guests</button>}
+        </div>)
+      })}</div>
+    </div>);
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // PAGE: INVENTORY
+  // ═══════════════════════════════════════════════════════════
+  const Inventory=()=>{
+    const[editId,setEditId]=useState(null);
+    const[editQty,setEditQty]=useState("");
+    const startEdit=(item)=>{setEditId(item.id);setEditQty(String(item.qty))};
+    const saveEdit=()=>{setInventory(p=>p.map(i=>i.id===editId?{...i,qty:+editQty}:i));setEditId(null);toast.add("Stock updated")};
+    return(<div className="space-y-6">
+      <div className="flex items-center justify-between"><div><h1 className="text-2xl font-bold text-zinc-100">Inventory</h1><p className="text-sm text-zinc-500">{inventory.filter(i=>i.qty<=i.threshold).length} low stock alerts</p></div></div>
+      <div className="overflow-x-auto rounded-xl border border-zinc-800/80"><table className="w-full text-sm"><thead><tr className="border-b border-zinc-800 bg-zinc-900/80"><th className="px-4 py-3 text-left text-xs font-semibold uppercase text-zinc-500">Item</th><th className="px-4 py-3 text-left text-xs font-semibold uppercase text-zinc-500">Category</th><th className="px-4 py-3 text-left text-xs font-semibold uppercase text-zinc-500">Quantity</th><th className="px-4 py-3 text-left text-xs font-semibold uppercase text-zinc-500">Status</th><th className="px-4 py-3 text-left text-xs font-semibold uppercase text-zinc-500">Cost</th><th className="px-4 py-3 text-left text-xs font-semibold uppercase text-zinc-500">Supplier</th><th className="px-4 py-3 text-right text-xs font-semibold uppercase text-zinc-500">Actions</th></tr></thead>
+        <tbody className="divide-y divide-zinc-800/60">{inventory.map(item=>{const low=item.qty<=item.threshold;const pct=Math.min(100,(item.qty/item.par)*100);return(
+          <tr key={item.id} className={cn("bg-zinc-900/40 hover:bg-zinc-800/40",low&&"bg-red-500/5")}><td className="px-4 py-3 font-medium text-zinc-200">{item.name}</td><td className="px-4 py-3"><Badge>{item.category}</Badge></td>
+            <td className="px-4 py-3">{editId===item.id?<div className="flex items-center gap-2"><input className="w-20 rounded bg-zinc-800 border border-zinc-700 px-2 py-1 text-sm text-zinc-200" value={editQty} onChange={e=>setEditQty(e.target.value)} autoFocus/><button onClick={saveEdit} className="text-emerald-400 hover:text-emerald-300"><Check size={14}/></button><button onClick={()=>setEditId(null)} className="text-zinc-500 hover:text-zinc-300"><X size={14}/></button></div>:<div className="flex items-center gap-2"><span className={cn("font-semibold",low?"text-red-400":"text-zinc-200")}>{item.qty} {item.unit}</span><div className="h-1.5 w-16 rounded-full bg-zinc-800"><div className={cn("h-full rounded-full",low?"bg-red-500":pct>60?"bg-emerald-500":"bg-amber-500")} style={{width:`${pct}%`}}/></div></div>}</td>
+            <td className="px-4 py-3">{low?<Badge variant="danger"><AlertTriangle size={10}/>Low</Badge>:<Badge variant="success"><Check size={10}/>OK</Badge>}</td>
+            <td className="px-4 py-3 text-zinc-400">{fmt(item.cost)}/{item.unit}</td><td className="px-4 py-3 text-zinc-400">{item.supplier}</td>
+            <td className="px-4 py-3 text-right"><button onClick={()=>startEdit(item)} className="rounded-md bg-zinc-800 px-3 py-1 text-xs text-zinc-300 hover:bg-zinc-700"><Edit size={12} className="inline mr-1"/>Adjust</button></td></tr>)})}</tbody></table></div>
+    </div>);
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // PAGE: RESERVATIONS
+  // ═══════════════════════════════════════════════════════════
+  const Reservations=()=>{
+    const[modal,setModal]=useState(false);
+    const[form,setForm]=useState({name:"",phone:"",size:2,time:"19:00",tableId:"",notes:""});
+    const addRes=()=>{if(!form.name.trim()){toast.add("Name is required","error");return}
+      setReservations(p=>[{id:uid(),name:form.name,phone:form.phone,size:form.size,time:form.time,date:"Today",tableId:form.tableId,status:"confirmed",notes:form.notes},...p]);
+      if(form.tableId){setTables(p=>p.map(t=>t.id===form.tableId?{...t,status:"reserved"}:t))}
+      toast.add(`Reservation for ${form.name} confirmed`);setModal(false);setForm({name:"",phone:"",size:2,time:"19:00",tableId:"",notes:""})};
+    return(<div className="space-y-6">
+      <div className="flex items-center justify-between"><div><h1 className="text-2xl font-bold text-zinc-100">Reservations</h1><p className="text-sm text-zinc-500">{reservations.filter(r=>r.status==="confirmed").length} pending</p></div><Btn onClick={()=>setModal(true)}><Plus size={16} className="inline mr-1"/>New Reservation</Btn></div>
+      <div className="space-y-3">{reservations.map(r=>(
+        <div key={r.id} className="flex items-center justify-between rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-4 hover:border-zinc-700 transition-all">
+          <div className="flex items-center gap-4"><div className="flex h-12 w-12 flex-col items-center justify-center rounded-lg bg-amber-500/10"><span className="text-lg font-black text-amber-400">{r.time.split(":")[0]}</span><span className="text-[10px] text-amber-400/70">:{r.time.split(":")[1]}</span></div>
+            <div><p className="font-semibold text-zinc-200">{r.name}</p><div className="flex items-center gap-3 text-xs text-zinc-500 mt-0.5"><span><Users size={11} className="inline mr-0.5"/>{r.size}</span>{r.tableId&&<span><Armchair size={11} className="inline mr-0.5"/>T{tables.find(t=>t.id===r.tableId)?.number}</span>}{r.phone&&<span><Phone size={11} className="inline mr-0.5"/>{r.phone}</span>}</div>{r.notes&&<p className="text-xs text-amber-400/70 mt-0.5">{r.notes}</p>}</div></div>
+          <div className="flex items-center gap-2"><Badge variant={r.status==="confirmed"?"success":r.status==="seated"?"info":"default"}>{r.status}</Badge>
+            {r.status==="confirmed"&&<button onClick={()=>seatReservation(r.id)} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500">Seat</button>}
+            {r.status==="confirmed"&&<button onClick={()=>{setReservations(p=>p.map(x=>x.id===r.id?{...x,status:"cancelled"}:x));if(r.tableId)setTables(p=>p.map(t=>t.id===r.tableId&&t.status==="reserved"?{...t,status:"available"}:t));toast.add(`${r.name} cancelled`)}} className="rounded-lg bg-zinc-800 px-2 py-1.5 text-xs text-red-400 hover:bg-red-500/20"><X size={12}/></button>}
+          </div></div>))}</div>
+      <Modal open={modal} onClose={()=>setModal(false)} title="New Reservation">
+        <div className="space-y-4">
+          <Input label="Guest Name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} placeholder="Name"/>
+          <Input label="Phone" value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} placeholder="+49..."/>
+          <div className="grid grid-cols-2 gap-4"><Input label="Party Size" type="number" value={form.size} onChange={e=>setForm(f=>({...f,size:+e.target.value}))}/><Input label="Time" type="time" value={form.time} onChange={e=>setForm(f=>({...f,time:e.target.value}))}/></div>
+          <Select label="Table" value={form.tableId} onChange={e=>setForm(f=>({...f,tableId:e.target.value}))}><option value="">Auto-assign</option>{tables.filter(t=>t.status==="available").map(t=><option key={t.id} value={t.id}>Table {t.number} ({t.capacity} seats)</option>)}</Select>
+          <Input label="Notes" value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="Special requests..."/>
+          <Btn className="w-full" onClick={addRes}>Confirm Reservation</Btn>
+        </div>
+      </Modal>
+    </div>);
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // PAGE: STAFF
+  // ═══════════════════════════════════════════════════════════
+  const Staff=()=>{
+    const rc={owner:"brand",manager:"info",chef:"purple",waiter:"success",cashier:"warning",host:"default"};
+    return(<div className="space-y-6"><div className="flex items-center justify-between"><h1 className="text-2xl font-bold text-zinc-100">Staff</h1><p className="text-sm text-zinc-500">{staff.filter(s=>s.active).length} active</p></div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{staff.map(s=>(
+        <div key={s.id} className={cn("rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-5 hover:border-zinc-700 transition-all",!s.active&&"opacity-50")}>
+          <div className="flex items-center gap-3 mb-3"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-amber-500/20 to-orange-600/20 text-sm font-bold text-amber-400">{s.avatar}</div><div><p className="font-semibold text-zinc-200">{s.name}</p><Badge variant={rc[s.role]} className="capitalize">{s.role}</Badge></div></div>
+          <div className="space-y-1 text-xs text-zinc-500"><p><Mail size={11} className="inline mr-1"/>{s.email}</p>{s.rate>0&&<p><DollarSign size={11} className="inline mr-1"/>€{s.rate}/hr</p>}<p>{s.active?<Wifi size={11} className="inline mr-1 text-emerald-400"/>:<WifiOff size={11} className="inline mr-1"/>}{s.active?"Active":"Inactive"}</p></div>
+        </div>))}</div>
+    </div>);
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // PAGE: ANALYTICS
+  // ═══════════════════════════════════════════════════════════
+  const Analytics=()=>{
+    const itemStats={};orders.filter(o=>o.status==="completed").forEach(o=>o.items.forEach(i=>{if(!itemStats[i.name])itemStats[i.name]={name:i.name,orders:0,revenue:0};itemStats[i.name].orders+=i.qty;itemStats[i.name].revenue+=i.price*i.qty}));
+    const topItems=Object.values(itemStats).sort((a,b)=>b.revenue-a.revenue).slice(0,6);
+    const typeData=[{name:"Dine-in",value:orders.filter(o=>o.type==="dine_in").length||1,color:"#F59E0B"},{name:"Takeout",value:orders.filter(o=>o.type==="takeout").length||1,color:"#3B82F6"}];
+    return(<div className="space-y-6">
+      <h1 className="text-2xl font-bold text-zinc-100">Analytics</h1>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <KPI title="Revenue" value={fmt(todayRevenue)} icon={DollarSign} trend="up"/>
+        <KPI title="Orders" value={orders.length} icon={ShoppingBag} trend="up"/>
+        <KPI title="Avg Ticket" value={completedOrders.length?fmt(todayRevenue/completedOrders.length):"—"} icon={Target} trend="up"/>
+        <KPI title="Completion Rate" value={orders.length?Math.round(completedOrders.length/orders.length*100)+"%":"—"} icon={CheckCircle2} trend="up"/>
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-5"><h2 className="mb-4 text-sm font-semibold text-zinc-300">Top Items by Revenue</h2>
+          {topItems.length?<ResponsiveContainer width="100%" height={220}><ReBarChart data={topItems} layout="vertical"><CartesianGrid strokeDasharray="3 3" stroke="#27272a"/><XAxis type="number" stroke="#52525b" fontSize={11} tickFormatter={v=>`€${v}`}/><YAxis type="category" dataKey="name" stroke="#52525b" fontSize={11} width={100}/><Tooltip contentStyle={{background:"#18181b",border:"1px solid #3f3f46",borderRadius:"8px",fontSize:"12px"}}/><Bar dataKey="revenue" fill="#F59E0B" radius={[0,4,4,0]}/></ReBarChart></ResponsiveContainer>:<p className="text-sm text-zinc-500 text-center py-12">Complete some orders to see analytics</p>}
+        </div>
+        <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-5"><h2 className="mb-4 text-sm font-semibold text-zinc-300">Order Types</h2>
+          <div className="flex items-center gap-6"><ResponsiveContainer width="50%" height={180}><RePieChart><Pie data={typeData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" stroke="none">{typeData.map((e,i)=><Cell key={i} fill={e.color}/>)}</Pie></RePieChart></ResponsiveContainer>
+          <div className="space-y-2">{typeData.map(d=><div key={d.name} className="flex items-center gap-2"><div className="h-3 w-3 rounded-full" style={{background:d.color}}/><span className="text-xs text-zinc-400">{d.name}</span><span className="text-xs font-bold text-zinc-200">{d.value}</span></div>)}</div></div>
+        </div>
+      </div>
+    </div>);
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // PAGE: CUSTOMERS
+  // ═══════════════════════════════════════════════════════════
+  const Customers=()=>{
+    const[modal,setModal]=useState(false);
+    const[form,setForm]=useState({name:"",email:"",phone:"",notes:""});
+    const addCust=()=>{if(!form.name.trim()){toast.add("Name required","error");return}setCustomers(p=>[{id:uid(),name:form.name,email:form.email,phone:form.phone,visits:0,spent:0,points:0,tags:[],notes:form.notes},...p]);toast.add(`${form.name} added`);setModal(false);setForm({name:"",email:"",phone:"",notes:""})};
+    return(<div className="space-y-6">
+      <div className="flex items-center justify-between"><h1 className="text-2xl font-bold text-zinc-100">Customers</h1><Btn onClick={()=>setModal(true)}><Plus size={16} className="inline mr-1"/>Add Customer</Btn></div>
+      <div className="space-y-3">{customers.map(c=>(
+        <div key={c.id} className="flex items-center justify-between rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-4 hover:border-zinc-700 transition-all">
+          <div className="flex items-center gap-4"><div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-amber-500/20 to-orange-600/20 text-sm font-bold text-amber-400">{c.name.split(" ").map(w=>w[0]).join("").slice(0,2)}</div>
+            <div><div className="flex items-center gap-2"><p className="font-semibold text-zinc-200">{c.name}</p>{c.tags?.map(t=><Badge key={t} variant={t==="VIP"?"brand":"default"} className="text-[10px]">{t}</Badge>)}</div><div className="flex items-center gap-3 text-xs text-zinc-500 mt-0.5">{c.email&&<span><Mail size={11} className="inline mr-0.5"/>{c.email}</span>}{c.phone&&<span><Phone size={11} className="inline mr-0.5"/>{c.phone}</span>}</div>{c.notes&&<p className="text-xs text-zinc-400 mt-0.5">{c.notes}</p>}</div></div>
+          <div className="text-right"><p className="text-sm font-bold text-zinc-200">{fmt(c.spent)}</p><p className="text-xs text-zinc-500">{c.visits} visits</p>{c.points>0&&<Badge variant="brand" className="text-[10px]"><Star size={10}/>{c.points}pts</Badge>}</div></div>))}</div>
+      <Modal open={modal} onClose={()=>setModal(false)} title="Add Customer">
+        <div className="space-y-4"><Input label="Name" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/><Input label="Email" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))}/><Input label="Phone" value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))}/><Input label="Notes" value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))}/><Btn className="w-full" onClick={addCust}>Add Customer</Btn></div>
+      </Modal>
+    </div>);
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // PAGE: SETTINGS
+  // ═══════════════════════════════════════════════════════════
+  const SettingsPage=()=>(
+    <div className="space-y-6"><h1 className="text-2xl font-bold text-zinc-100">Settings</h1>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-5"><div className="mb-4 flex items-center gap-2"><Store size={18} className="text-amber-400"/><h2 className="text-sm font-semibold text-zinc-300">Restaurant</h2></div><div className="space-y-3">{[["Name","Bella Cucina"],["Address","47 Maximilianstraße, Munich"],["Phone","+49 89 1234567"],["Currency","EUR"],["Tax Rate","19%"],["Timezone","Europe/Berlin"]].map(([l,v])=><div key={l} className="flex justify-between"><span className="text-sm text-zinc-500">{l}</span><span className="text-sm font-medium text-zinc-200">{v}</span></div>)}</div><Btn className="w-full mt-4" onClick={()=>toast.add("Settings saved!")}>Save</Btn></div>
+        <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-5"><div className="mb-4 flex items-center gap-2"><ShieldCheck size={18} className="text-amber-400"/><h2 className="text-sm font-semibold text-zinc-300">Security</h2></div><div className="space-y-3">{[["Two-Factor Auth","Required for Owner & Manager"],["Row Level Security","Tenant isolation"],["Rate Limiting","5 attempts / 15min"],["CSP Headers","Nonce-based policy"],["Audit Logging","Immutable trails"]].map(([l,d])=><div key={l} className="flex items-center justify-between rounded-lg bg-zinc-800/40 p-3"><div><p className="text-sm font-medium text-zinc-200">{l}</p><p className="text-xs text-zinc-500">{d}</p></div><Badge variant="success"><Lock size={10}/>On</Badge></div>)}</div></div>
+        <div className="lg:col-span-2 rounded-xl border border-zinc-800/80 bg-zinc-900/70 p-5"><div className="mb-4 flex items-center gap-2"><UserCog size={18} className="text-amber-400"/><h2 className="text-sm font-semibold text-zinc-300">Permissions</h2></div><div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="border-b border-zinc-800"><th className="px-3 py-2 text-left text-zinc-500">Permission</th>{["Owner","Manager","Chef","Waiter","Cashier","Host"].map(r=><th key={r} className="px-3 py-2 text-center text-zinc-500">{r}</th>)}</tr></thead><tbody>{[["Settings",[1,0,0,0,0,0]],["Staff",[1,1,0,0,0,0]],["Menu",[1,1,1,0,0,0]],["Orders",[1,1,0,1,1,0]],["Payments",[1,1,0,0,1,0]],["Reports",[1,1,0,0,0,0]],["Tables",[1,1,0,1,0,1]],["Inventory",[1,1,1,0,0,0]]].map(([p,r])=><tr key={p} className="border-b border-zinc-800/40"><td className="px-3 py-2 text-zinc-400">{p}</td>{r.map((v,i)=><td key={i} className="px-3 py-2 text-center">{v?<Check size={14} className="mx-auto text-emerald-400"/>:<X size={14} className="mx-auto text-zinc-700"/>}</td>)}</tr>)}</tbody></table></div></div>
+      </div>
     </div>
   );
+
+  // ═══════════════════════════════════════════════════════════
+  // NAVIGATION & LAYOUT
+  // ═══════════════════════════════════════════════════════════
+  const nav=[
+    {id:"dashboard",label:"Dashboard",icon:LayoutDashboard},
+    {id:"orders",label:"Orders",icon:ShoppingBag,badge:activeOrders.length||null},
+    {id:"kitchen",label:"Kitchen",icon:ChefHat,badge:orders.filter(o=>["confirmed","preparing"].includes(o.status)).length||null},
+    {id:"pos",label:"POS",icon:CreditCard},
+    {id:"menu",label:"Menu",icon:UtensilsCrossed},
+    {id:"tables",label:"Tables",icon:Armchair},
+    {id:"reservations",label:"Reservations",icon:CalendarClock,badge:reservations.filter(r=>r.status==="confirmed").length||null},
+    {id:"inventory",label:"Inventory",icon:Package,badge:inventory.filter(i=>i.qty<=i.threshold).length||null},
+    {id:"staff",label:"Staff",icon:Users},
+    {id:"analytics",label:"Analytics",icon:BarChart3},
+    {id:"customers",label:"Customers",icon:Heart},
+    {id:"settings",label:"Settings",icon:Settings},
+  ];
+
+  const pages={dashboard:Dashboard,orders:Orders,kitchen:Kitchen,pos:POS,menu:Menu,tables:Tables,reservations:Reservations,inventory:Inventory,staff:Staff,analytics:Analytics,customers:Customers,settings:SettingsPage};
+  const Page=pages[page]||Dashboard;
+
+  return(
+    <div className="flex h-screen bg-zinc-950 text-zinc-100 overflow-hidden">
+      <aside className={cn("flex flex-col border-r border-zinc-800/80 bg-zinc-950 transition-all duration-300 shrink-0",sidebarOpen?"w-60":"w-16")}>
+        <div className="flex h-16 items-center gap-3 border-b border-zinc-800/80 px-4">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 shadow-md shadow-amber-500/15"><UtensilsCrossed size={18} className="text-white"/></div>
+          {sidebarOpen&&<div><p className="text-sm font-bold truncate" style={{fontFamily:"Georgia,serif"}}>Bella Cucina</p><p className="text-[10px] text-zinc-500">RMS</p></div>}
+        </div>
+        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">{nav.map(n=>{const I=n.icon;const a=page===n.id;return(
+          <button key={n.id} onClick={()=>setPage(n.id)} className={cn("flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",a?"bg-amber-500/10 text-amber-400":"text-zinc-500 hover:bg-zinc-800/60 hover:text-zinc-300",!sidebarOpen&&"justify-center px-0")}>
+            <I size={18}/>{sidebarOpen&&<><span className="flex-1 text-left">{n.label}</span>{n.badge&&<span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-500/15 px-1.5 text-[10px] font-bold text-amber-400">{n.badge}</span>}</>}
+          </button>)})}</nav>
+        <div className="border-t border-zinc-800/80 p-3"><button onClick={()=>setSidebarOpen(!sidebarOpen)} className="flex w-full items-center justify-center gap-2 rounded-lg py-2 text-xs text-zinc-600 hover:bg-zinc-800/60 hover:text-zinc-400">{sidebarOpen?<PanelLeftClose size={16}/>:<PanelLeft size={16}/>}{sidebarOpen&&"Collapse"}</button></div>
+      </aside>
+      <div className="flex flex-1 flex-col min-w-0">
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-zinc-800/80 bg-zinc-950/80 px-6">
+          <div className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-1.5"><Search size={14} className="text-zinc-500"/><span className="text-xs text-zinc-500">Search... ⌘K</span></div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-zinc-500 font-mono">{new Date().toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})}</span>
+            <button className="relative rounded-lg p-2 text-zinc-500 hover:bg-zinc-800"><Bell size={18}/>{activeOrders.length>0&&<span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-amber-500 animate-pulse"/>}</button>
+            <div className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-1.5"><div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-600 text-[10px] font-bold text-white">{(currentUser||"U")[0].toUpperCase()}</div><div className="hidden sm:block"><p className="text-xs font-medium text-zinc-300">{currentUser}</p><p className="text-[10px] text-zinc-500">Owner</p></div></div>
+            <button onClick={()=>{setIsAuth(false);setOrders([]);setTables(seedTables.map(t=>({...t,status:"available",orderId:null,guests:0,server:null,seatedAt:null})))}} className="rounded-lg p-2 text-zinc-600 hover:text-red-400"><LogOut size={16}/></button>
+          </div>
+        </header>
+        <main className="flex-1 overflow-y-auto p-6"><Page/></main>
+      </div>
+      <Toasts toasts={toast.toasts}/>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MENU ITEM FORM (used by Menu page modal)
+   ═══════════════════════════════════════════════════════════════ */
+function MenuForm({item:init,categories,onSave,onCancel}){
+  const[f,setF]=useState({...init});
+  const u=(k,v)=>setF(p=>({...p,[k]:v}));
+  return(<div className="space-y-4">
+    <Input label="Name" value={f.name} onChange={e=>u("name",e.target.value)} placeholder="Item name"/>
+    <div className="grid grid-cols-2 gap-4">
+      <Select label="Category" value={f.catId} onChange={e=>u("catId",e.target.value)}>{categories.map(c=><option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}</Select>
+      <Select label="Station" value={f.station} onChange={e=>u("station",e.target.value)}>{["grill","pasta","pizza","salad","bar"].map(s=><option key={s} value={s}>{s}</option>)}</Select>
+    </div>
+    <div className="grid grid-cols-3 gap-4">
+      <Input label="Price (€)" type="number" step="0.1" value={f.price} onChange={e=>u("price",+e.target.value)}/>
+      <Input label="Cost (€)" type="number" step="0.1" value={f.cost} onChange={e=>u("cost",+e.target.value)}/>
+      <Input label="Prep (min)" type="number" value={f.prepTime} onChange={e=>u("prepTime",+e.target.value)}/>
+    </div>
+    <Input label="Calories" type="number" value={f.calories} onChange={e=>u("calories",+e.target.value)}/>
+    <Input label="Allergens (comma-separated)" value={(f.allergens||[]).join(", ")} onChange={e=>u("allergens",e.target.value.split(",").map(s=>s.trim()).filter(Boolean))}/>
+    <div className="flex items-center gap-3"><input type="checkbox" checked={f.available} onChange={e=>u("available",e.target.checked)} className="rounded"/><span className="text-sm text-zinc-300">Available</span></div>
+    <div className="flex gap-3"><Btn className="flex-1" onClick={()=>{if(!f.name.trim())return;onSave(f)}}><Save size={14} className="inline mr-1"/>{f.id?"Update":"Add"} Item</Btn><Btn variant="secondary" onClick={onCancel}>Cancel</Btn></div>
+  </div>);
 }
