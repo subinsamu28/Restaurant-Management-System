@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#09090b"/>
+      <stop offset="100%" style="stop-color:#18181b"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F59E0B"/>
+      <stop offset="100%" style="stop-color:#EA580C"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <!-- Subtle grid pattern -->
+  <g opacity="0.03">
+    <line x1="0" y1="0" x2="1200" y2="0" stroke="white" stroke-width="1" transform="translate(0,100)"/>
+    <line x1="0" y1="0" x2="1200" y2="0" stroke="white" stroke-width="1" transform="translate(0,200)"/>
+    <line x1="0" y1="0" x2="1200" y2="0" stroke="white" stroke-width="1" transform="translate(0,300)"/>
+    <line x1="0" y1="0" x2="1200" y2="0" stroke="white" stroke-width="1" transform="translate(0,400)"/>
+    <line x1="0" y1="0" x2="1200" y2="0" stroke="white" stroke-width="1" transform="translate(0,500)"/>
+  </g>
+  <!-- Amber glow -->
+  <ellipse cx="600" cy="250" rx="300" ry="200" fill="#F59E0B" opacity="0.04"/>
+  <!-- Icon -->
+  <rect x="530" y="140" width="80" height="80" rx="20" fill="url(#accent)"/>
+  <g transform="translate(570,180)" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round">
+    <line x1="-8" y1="-14" x2="-8" y2="14"/>
+    <line x1="-8" y1="-14" x2="-12" y2="-6"/>
+    <line x1="-8" y1="-14" x2="-4" y2="-6"/>
+    <line x1="8" y1="-14" x2="8" y2="14"/>
+    <path d="M8,-14 Q14,-6 8,0" fill="white" stroke="white" stroke-width="0.8"/>
+  </g>
+  <!-- Title -->
+  <text x="600" y="290" text-anchor="middle" fill="white" font-family="Georgia,serif" font-size="52" font-weight="bold">Bella Cucina</text>
+  <!-- Subtitle -->
+  <text x="600" y="340" text-anchor="middle" fill="#a1a1aa" font-family="system-ui,sans-serif" font-size="22">Restaurant Management System</text>
+  <!-- Feature badges -->
+  <g transform="translate(600,410)" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14">
+    <rect x="-460" y="-16" width="120" height="32" rx="16" fill="#F59E0B" opacity="0.15"/>
+    <text x="-400" y="5" fill="#F59E0B">Dashboard</text>
+    <rect x="-310" y="-16" width="80" height="32" rx="16" fill="#3B82F6" opacity="0.15"/>
+    <text x="-270" y="5" fill="#3B82F6">POS</text>
+    <rect x="-200" y="-16" width="120" height="32" rx="16" fill="#8B5CF6" opacity="0.15"/>
+    <text x="-140" y="5" fill="#8B5CF6">Kitchen KDS</text>
+    <rect x="-50" y="-16" width="100" height="32" rx="16" fill="#10B981" opacity="0.15"/>
+    <text x="0" y="5" fill="#10B981">Orders</text>
+    <rect x="80" y="-16" width="100" height="32" rx="16" fill="#EC4899" opacity="0.15"/>
+    <text x="130" y="5" fill="#EC4899">Analytics</text>
+    <rect x="210" y="-16" width="120" height="32" rx="16" fill="#06B6D4" opacity="0.15"/>
+    <text x="270" y="5" fill="#06B6D4">Inventory</text>
+    <rect x="360" y="-16" width="100" height="32" rx="16" fill="#EF4444" opacity="0.15"/>
+    <text x="410" y="5" fill="#EF4444">Security</text>
+  </g>
+  <!-- Tech stack -->
+  <text x="600" y="500" text-anchor="middle" fill="#52525b" font-family="system-ui,sans-serif" font-size="16">Next.js 14  ·  Supabase  ·  TypeScript  ·  Tailwind CSS  ·  Vercel</text>
+  <!-- Author -->
+  <text x="600" y="570" text-anchor="middle" fill="#3f3f46" font-family="system-ui,sans-serif" font-size="14">Built by Subin Samu  ·  subinsamu.com</text>
+</svg>

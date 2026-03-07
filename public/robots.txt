@@ -1,0 +1,11 @@
+# Bella Cucina RMS - Robots.txt
+# Allow search engines to index public pages, block dashboard/API routes
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /pos/
+Disallow: /kitchen/
+
+Sitemap: https://bella-cucina-rms.vercel.app/sitemap.xml
