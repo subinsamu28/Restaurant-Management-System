@@ -178,7 +178,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) and you're running.
 
-> 📖 **For the complete step-by-step walkthrough** — including Supabase project creation, auth provider configuration, Upstash Redis setup, and Vercel deployment — see the **[Full Setup Guide](docs/SETUP.md)**.
+> 📖 **For the complete step-by-step walkthrough** — including Supabase project creation, auth provider configuration, Upstash Redis setup, and Vercel deployment 
 
 ### Available Scripts
 
