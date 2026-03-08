@@ -17,8 +17,8 @@ A full-stack, multi-tenant restaurant management platform featuring real-time Ki
 
 <br/>
 
-<img src="https://bella-cucina-rms.vercel.app/" alt="Dashboard Preview" width="90%" />
-
+<img width="1035" height="1041" alt="image" src="https://github.com/user-attachments/assets/eb971c34-019f-4ecf-a0f3-6b7fdec35432" />
+<img width="2559" height="1029" alt="image" src="https://github.com/user-attachments/assets/ecf87505-6a7f-4258-b2ae-dfed20b3328d" />
 </div>
 
 ---
